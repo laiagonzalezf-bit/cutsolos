@@ -847,7 +847,14 @@ function closeSheet(){
   stop(); $('sheet').hidden=true; $('sheetBg').hidden=true; Z.i=-1;
 }
 $('shDone').onclick=closeSheet; $('sheetBg').onclick=closeSheet;
-const bounds=i=>({ lo: i>0 ? S.phrases[i-1].e : 0, hi: i<S.phrases.length-1 ? S.phrases[i+1].s : S.an.dur });
+// allargar una frase escurça la veïna (que sempre conserva 0,2 s; per juntar-les del tot hi ha «Uneix»)
+const bounds=i=>{ const pv=S.phrases[i-1], nx=S.phrases[i+1];
+  return { lo: pv ? pv.s+0.2 : 0, hi: nx ? nx.e-0.2 : S.an.dur }; };
+function setEdge(i,which,t){
+  const p=S.phrases[i], B=bounds(i), pv=S.phrases[i-1], nx=S.phrases[i+1];
+  if(which==='s'){ p.s=Math.max(B.lo, Math.min(p.e-0.2, t)); if(pv && pv.e>p.s) pv.e=p.s; }
+  else { p.e=Math.min(B.hi, Math.max(p.s+0.2, t)); if(nx && nx.s<p.e) nx.s=p.e; }
+}
 function zWindow(force){
   const p=S.phrases[Z.i], len=p.e-p.s, padT=Math.max(1.2, len*0.35);
   if(force || p.s < Z.w0+0.15 || p.e > Z.w1-0.15){
@@ -880,9 +887,7 @@ function drawZ(){
   if(P && !$('sheet').hidden){ ph.hidden=false; ph.style.left=pc(P.now()); } else ph.hidden=true;
 }
 function zSet(which,t){
-  const p=S.phrases[Z.i], B=bounds(Z.i);
-  if(which==='s') p.s=Math.max(B.lo, Math.min(p.e-0.2, t));
-  else p.e=Math.min(B.hi, Math.max(p.s+0.2, t));
+  setEdge(Z.i,which,t);
   zWindow(false); edited(false); drawZ();
 }
 function edited(structural){
@@ -930,8 +935,7 @@ ztl.addEventListener('pointermove',e=>{
   if(Z.drag!=='s' && Z.drag!=='e') return;
   const r=ztl.getBoundingClientRect(), W=Z.w1-Z.w0;
   const p=S.phrases[Z.i], t=Z.w0+(e.clientX-r.left)/r.width*W;
-  if(Z.drag==='s') p.s=Math.max(bounds(Z.i).lo, Math.min(p.e-0.2,t)); else p.e=Math.min(bounds(Z.i).hi, Math.max(p.s+0.2,t));
-  drawZ();
+  setEdge(Z.i,Z.drag,t); drawZ();
 });
 ztl.addEventListener('pointerup',()=>{
   const d=Z.drag; Z.drag=null; if(d!=='s' && d!=='e') return;
