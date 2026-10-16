@@ -153,6 +153,27 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .foot{font-size:12px;color:var(--muted);text-align:center;padding:4px 0 10px}
 
+/* ---- Edició de frases ---- */
+.hbtns{display:flex;gap:8px;align-items:center}
+.pill.icon{width:40px;height:40px;padding:0;display:grid;place-items:center}
+.pill.icon svg{width:19px;height:19px}
+.pill[aria-pressed="true"]{background:linear-gradient(90deg,#FF3CAC,#FF8A3D)!important;color:#fff}
+.pads.editing .pad{outline:1.5px dashed rgba(255,255,255,.35);outline-offset:-7px;animation:jig .35s ease-in-out infinite alternate}
+.pads.editing .pad:nth-child(2n){animation-delay:-.17s}
+@keyframes jig{from{transform:rotate(-.8deg)}to{transform:rotate(.8deg)}}
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60}
+.sheet{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:560px;z-index:61;background:#17131F;border-radius:26px 26px 0 0;
+  padding:18px 20px;padding-bottom:max(20px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:16px;box-shadow:0 -10px 40px rgba(0,0,0,.5)}
+.sh-head{display:flex;align-items:center;justify-content:space-between}
+.sh-head b{font-size:20px;font-weight:700}
+.mk .lab{font-size:13px;color:var(--muted);text-align:center}
+.shbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.shbtns .round{width:52px;height:52px}
+.pill.danger{color:#FF7A8A}
+.pill:disabled{opacity:.35}
+.shbtns{flex-wrap:nowrap}
+.shbtns .pill{padding:9px 12px}
+.cur{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#B57BFF;pointer-events:none}
 /* ---- Tema «Gradient» ---- */
 body{background:radial-gradient(120% 55% at 50% 0%,#2A1B4A 0%,var(--bg) 62%) fixed,var(--bg)}
 .topbar,.dock{background:rgba(13,11,20,.55);border:0}
@@ -249,7 +270,10 @@ body{background:radial-gradient(120% 55% at 50% 0%,#2A1B4A 0%,var(--bg) 62%) fix
     <section id="board" hidden>
       <div class="song" style="margin-bottom:12px">
         <div class="name"><b id="songName" class="ren" contenteditable="true" spellcheck="false" autocapitalize="off" enterkeyhint="done" aria-label="Nom de la cançó"></b><span id="songInfo"></span></div>
-        <button class="pill" id="bTrim">Tros</button>
+        <div class="hbtns">
+          <button class="pill icon" id="bEdit" aria-pressed="false" aria-label="Edita les frases"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg></button>
+          <button class="pill" id="bTrim">Tros</button>
+        </div>
       </div>
       <div class="pad-wrap"><div class="pads" id="pads" role="group" aria-label="Frases"></div></div>
       <div class="row tempo" style="margin-top:6px">
@@ -269,6 +293,29 @@ body{background:radial-gradient(120% 55% at 50% 0%,#2A1B4A 0%,var(--bg) 62%) fix
       </div>
     </section>
   </main>
+
+  <div class="sheet-bg" id="sheetBg" hidden></div>
+  <section class="sheet" id="sheet" hidden aria-label="Edita la frase">
+    <div class="sh-head"><b id="shTitle">Frase</b><button class="pill" id="shDone">Fet</button></div>
+    <div class="tl" id="ztl">
+      <div class="bars" id="zbars"></div>
+      <div class="reg" id="zreg"></div>
+      <div class="cur" id="zcur" hidden></div>
+      <div class="h ha" id="zha"><span></span></div>
+      <div class="h hb" id="zhb"><span></span></div>
+      <div class="ph" id="zph" hidden></div>
+    </div>
+    <div class="marks">
+      <div class="mk"><span class="lab">Inici</span><div class="nud"><button data-z="s,-0.1">−0,1</button><b id="zS"></b><button data-z="s,0.1">+0,1</button></div></div>
+      <div class="mk"><span class="lab">Final</span><div class="nud"><button data-z="e,-0.1">−0,1</button><b id="zE"></b><button data-z="e,0.1">+0,1</button></div></div>
+    </div>
+    <div class="shbtns">
+      <button class="round" id="zPlay" aria-label="Escolta"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+      <button class="pill" id="zSplit">Divideix</button>
+      <button class="pill" id="zJoin">Uneix amb la següent</button>
+      <button class="pill danger" id="zDel">Esborra</button>
+    </div>
+  </section>
 
   <nav class="dock" id="dock" hidden>
     <button id="bLoop" aria-pressed="false" aria-label="Repeteix">
@@ -312,7 +359,12 @@ async function loadFile(f, rec){
     if(rec){
       S.region = rec.region || {a:0,b:buf.duration};
       S.level = rec.level ?? 2; $('detail').value = S.level; setRate(rec.rate||1, true); S.pendingGroup = rec.group||null;
-      detect(); show('board');
+      if(rec.custom && rec.phrases && rec.phrases.length){
+        S.phrases = rec.phrases.map(p=>({s:p.s,e:p.e})); S.custom=true;
+        S.group = (S.pendingGroup && S.pendingGroup.b < S.phrases.length) ? S.pendingGroup : null; S.pendingGroup=null;
+        render();
+      } else detect();
+      show('board');
     } else {
       S.region={a:0,b:buf.duration}; S.level=2; $('detail').value=2; setRate(1, true);
       if(buf.duration > 75){ openTrim(); save(); }   // cançó sencera: primer tria el tros
@@ -414,7 +466,7 @@ function detect(){
   const sec = i => i*A.hop/A.sr;
   const ph = out.map(([a,b])=>({ s: Math.max(R.a, sec(a)-0.05), e: Math.min(R.b, sec(b)+A.win/A.sr+0.15) }));
   for(let k=1;k<ph.length;k++){ if(ph[k].s < ph[k-1].e){ const m=(ph[k].s+ph[k-1].e)/2; ph[k-1].e=m; ph[k].s=m; } }
-  S.phrases = ph; S.sel=null; S.last=null;
+  S.phrases = ph; S.sel=null; S.last=null; S.custom=false;
   // el grup desat només es recupera si les frases són les mateixes
   S.group = (S.pendingGroup && S.pendingGroup.b < ph.length) ? S.pendingGroup : null; S.pendingGroup=null;
   render(); save();
@@ -459,6 +511,7 @@ function show(which){
   $('busy').hidden = which!=='busy';
   $('board').hidden = which!=='board';
   $('trim').hidden = which!=='trim';
+  if(which!=='board'){ closeSheet(); setEditing(false); }
   $('dock').hidden = which!=='board';
   if(which!=='drop') $('err').hidden=true;
 }
@@ -518,8 +571,8 @@ function finished(P){
   if(S.loop){ S.loopTimer=setTimeout(()=>{ if(!S.play && S.loop && S.last && S.last.a===a && S.last.b===b) playRange(a,b); },350); }
   updDock();
 }
-function startMedia(a,b,from){
-  const el=mediaEl(), e=S.phrases[b].e, s=S.phrases[a].s;
+function startMedia(a,b,from,end){
+  const el=mediaEl(), e=end??S.phrases[b].e, s=S.phrases[a].s;
   const P={media:el,a,b,s,e,rate:S.rate,now:()=>el.currentTime}; S.play=P; S.last={a,b};
   el.pause(); el.playbackRate=S.rate; el.defaultPlaybackRate=S.rate;
   try{ el.currentTime=from; }catch(_){}
@@ -586,20 +639,22 @@ const pads=$('pads');
 pads.addEventListener('pointerdown',e=>{
   const el=e.target.closest('.pad'); if(!el || G.id!==null) return;
   G.id=e.pointerId; G.i=+el.dataset.i; G.x=e.clientX; G.y=e.clientY;
+  if(S.editing){ G.timer=-1; return; }
   G.timer=setTimeout(()=>{ G.timer=null; stop(true); S.sel={a:G.i,b:G.i}; paintSel(); hint('Arrossega fins a l\'última frase i deixa anar.'); try{navigator.vibrate&&navigator.vibrate(15)}catch(_){} },280);
 });
 pads.addEventListener('pointermove',e=>{
   if(e.pointerId!==G.id) return;
   if(S.sel){ const i=padAt(e.clientX,e.clientY); if(i>=0 && i!==S.sel.b){ S.sel.b=i; paintSel(); hint('Frases <b>'+(Math.min(S.sel.a,i)+1)+' a '+(Math.max(S.sel.a,i)+1)+'</b> · deixa anar per escoltar-les.'); } }
-  else if(G.timer && Math.hypot(e.clientX-G.x,e.clientY-G.y)>10){ clearTimeout(G.timer); G.timer=null; G.id=null; }
+  else if(G.timer && Math.hypot(e.clientX-G.x,e.clientY-G.y)>10){ if(G.timer>0) clearTimeout(G.timer); G.timer=null; G.id=null; }
 });
 // mentre selecciones, la pàgina no s'ha de desplaçar
 pads.addEventListener('touchmove',e=>{ if(S.sel) e.preventDefault(); },{passive:false});
 function endGesture(e, cancel){
   if(e.pointerId!==G.id) return;
-  const wasTap = !!G.timer; clearTimeout(G.timer); G.timer=null; G.id=null;
+  const wasTap = !!G.timer; if(G.timer>0) clearTimeout(G.timer); G.timer=null; G.id=null;
   if(S.sel){ const a=Math.min(S.sel.a,S.sel.b), b=Math.max(S.sel.a,S.sel.b); S.sel=null;
     if(!cancel){ if(a!==b){ S.group={a,b}; save(); } playRange(a,b); } else paintSel(); }
+  else if(wasTap && !cancel && S.editing){ openSheet(G.i); }
   else if(wasTap && !cancel){
     const g=S.group, i=G.i, now=performance.now();
     const dbl = G.lastI===i && now-G.lastT<350;
@@ -696,7 +751,7 @@ tl.addEventListener('pointerup',()=>{
   else if(T.drag==='b') tPlayFrom(Math.max(S.region.a,S.region.b-3),S.region.b);
   T.drag=null;
 });
-$('detail').oninput=e=>{ stop(); S.level=+e.target.value; detect(); };
+$('detail').oninput=e=>{ stop(); const had=S.custom; S.level=+e.target.value; detect(); if(had) toast('Frases tornades a tallar'); };
 $('file').onchange=e=>loadFile(e.target.files[0]);
 const drop=$('drop');
 ['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over');}));
@@ -722,7 +777,7 @@ async function tx(mode, fn){ const db=await idb(); return new Promise((res,rej)=
 let saveT=null; const pend=new Map();
 function save(){
   if(!S.blob || !S.an) return;
-  pend.set(S.sid,{ id:S.sid, name:S.name, blob:S.blob, region:{a:S.region.a,b:S.region.b}, level:S.level, rate:S.rate, group:S.group,
+  pend.set(S.sid,{ id:S.sid, name:S.name, blob:S.blob, region:{a:S.region.a,b:S.region.b}, level:S.level, rate:S.rate, group:S.group, custom:!!S.custom, phrases:S.custom?S.phrases.map(p=>({s:p.s,e:p.e})):null,
                    dur:S.an.dur, n:S.phrases.length, saved:Date.now() });
   clearTimeout(saveT); saveT=setTimeout(flushSave,500);
 }
@@ -766,6 +821,113 @@ try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e
 if('serviceWorker' in navigator && location.protocol==='https:' && /github\.io$/.test(location.hostname)){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
+// ---------- Editar una frase ----------
+const Z={ i:-1, w0:0, w1:0, cur:null, drag:null };
+function setEditing(on){
+  S.editing=!!on; $('bEdit').setAttribute('aria-pressed',S.editing);
+  $('pads').classList.toggle('editing',S.editing);
+  if(on) stop();
+}
+$('bEdit').onclick=()=>setEditing(!S.editing);
+function openSheet(i){
+  stop(); Z.i=i; Z.cur=null; zWindow(true);
+  $('sheet').hidden=false; $('sheetBg').hidden=false; drawZ();
+}
+function closeSheet(){
+  if($('sheet').hidden) return;
+  stop(); $('sheet').hidden=true; $('sheetBg').hidden=true; Z.i=-1;
+}
+$('shDone').onclick=closeSheet; $('sheetBg').onclick=closeSheet;
+const bounds=i=>({ lo: i>0 ? S.phrases[i-1].e : 0, hi: i<S.phrases.length-1 ? S.phrases[i+1].s : S.an.dur });
+function zWindow(force){
+  const p=S.phrases[Z.i], len=p.e-p.s, padT=Math.max(1.2, len*0.35);
+  if(force || p.s < Z.w0+0.15 || p.e > Z.w1-0.15){
+    Z.w0=Math.max(0,p.s-padT); Z.w1=Math.min(S.an.dur,p.e+padT);
+    // silueta del tros visible
+    const A=S.an, N=90, bars=$('zbars'); bars.innerHTML='';
+    for(let k=0;k<N;k++){
+      const t0=Z.w0+(Z.w1-Z.w0)*k/N, t1=Z.w0+(Z.w1-Z.w0)*(k+1)/N;
+      let m=-200; for(let f=Math.floor(t0*100); f<Math.ceil(t1*100) && f<A.n; f++) m=Math.max(m,A.db[f]);
+      const v=Math.max(0,Math.min(1,(m-A.floor)/((A.peak-A.floor)||1)));
+      const el=document.createElement('i'); el.style.height=(6+v*94)+'%'; bars.appendChild(el);
+    }
+  }
+}
+function drawZ(){
+  if(Z.i<0) return;
+  const p=S.phrases[Z.i], W=Z.w1-Z.w0, pc=t=>(100*(t-Z.w0)/W)+'%';
+  $('shTitle').textContent='Frase '+(Z.i+1);
+  $('zreg').style.left=pc(p.s); $('zreg').style.width=(100*(p.e-p.s)/W)+'%';
+  $('zha').style.left=pc(p.s); $('zhb').style.left=pc(p.e);
+  const f=t=>{ const m=Math.floor(t/60), x=(t%60).toFixed(1).replace('.',','); return m+':'+(t%60<10?'0':'')+x; };
+  $('zS').textContent=f(p.s); $('zE').textContent=f(p.e);
+  const bs=$('zbars').children, n=bs.length;
+  for(let k=0;k<n;k++){ const c=Z.w0+(k+.5)/n*W; bs[k].classList.toggle('in', c>=p.s && c<=p.e); }
+  const cur=$('zcur'); cur.hidden = Z.cur==null; if(Z.cur!=null) cur.style.left=pc(Z.cur);
+  $('zJoin').disabled = Z.i>=S.phrases.length-1;
+  $('zJoin').textContent = Z.i>=S.phrases.length-1 ? 'Uneix' : 'Uneix amb la '+(Z.i+2);
+  $('zSplit').disabled = !(Z.cur!=null && Z.cur>p.s+0.15 && Z.cur<p.e-0.15);
+  const P=S.play, ph=$('zph');
+  if(P && !$('sheet').hidden){ ph.hidden=false; ph.style.left=pc(P.now()); } else ph.hidden=true;
+}
+function zSet(which,t){
+  const p=S.phrases[Z.i], B=bounds(Z.i);
+  if(which==='s') p.s=Math.max(B.lo, Math.min(p.e-0.2, t));
+  else p.e=Math.min(B.hi, Math.max(p.s+0.2, t));
+  zWindow(false); edited(false); drawZ();
+}
+function edited(structural){
+  S.custom=true; if(structural){ S.group=null; } render(); save();
+}
+document.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{
+  const [w,d]=b.dataset.z.split(','), p=S.phrases[Z.i];
+  zSet(w,(w==='s'?p.s:p.e)+(+d));
+  if(w==='s') zPlay(p.s, Math.min(p.e,p.s+2.5)); else zPlay(Math.max(p.s,p.e-2.5), p.e);
+});
+function zPlay(from,to){ if(!S.blob) return; stop(true); startMedia(Z.i,Z.i,from,to); zLoop(); }
+function zLoop(){ if(Z.loop) return; Z.loop=true;
+  const f=()=>{ drawZ(); if(S.play && !$('sheet').hidden) requestAnimationFrame(f); else { Z.loop=false; drawZ(); } }; f(); }
+$('zPlay').onclick=()=>{ if(S.play){ stop(); drawZ(); } else { const p=S.phrases[Z.i]; zPlay(p.s,p.e); } };
+$('zSplit').onclick=()=>{
+  const p=S.phrases[Z.i], c=Z.cur; if(c==null) return;
+  S.phrases.splice(Z.i+1,0,{s:c,e:p.e}); p.e=c; Z.cur=null;
+  edited(true); drawZ(); toast('Dividida en '+(Z.i+1)+' i '+(Z.i+2));
+};
+$('zJoin').onclick=()=>{
+  const p=S.phrases[Z.i], nx=S.phrases[Z.i+1]; if(!nx) return;
+  p.e=nx.e; S.phrases.splice(Z.i+1,1); zWindow(true); edited(true); drawZ();
+};
+$('zDel').onclick=()=>{
+  if(S.phrases.length<=1) return;
+  const b=$('zDel');
+  if(!b.classList.contains('sure')){ b.classList.add('sure'); b.textContent='Segur?'; setTimeout(()=>{b.classList.remove('sure');b.textContent='Esborra';},2500); return; }
+  b.classList.remove('sure'); b.textContent='Esborra';
+  S.phrases.splice(Z.i,1); edited(true); closeSheet();
+};
+// timeline ampliat: arrossega les vores o toca per posar el cursor (on es dividirà) i escoltar des d'allà
+const ztl=$('ztl');
+ztl.addEventListener('pointerdown',e=>{
+  const r=ztl.getBoundingClientRect(), W=Z.w1-Z.w0, x=e.clientX-r.left, t=Z.w0+x/r.width*W, p=S.phrases[Z.i];
+  const xs=(p.s-Z.w0)/W*r.width, xe=(p.e-Z.w0)/W*r.width;
+  const ds=Math.abs(x-xs), de=Math.abs(x-xe);
+  if(Math.min(ds,de)<22){ Z.drag = ds<=de ? 's':'e'; stop(); }
+  else { Z.drag='cur'; Z.cur=t; drawZ(); zPlay(t, Math.max(t+0.3, Math.min(S.an.dur, Math.max(p.e, t+2)))); }
+  ztl.setPointerCapture(e.pointerId);
+});
+ztl.addEventListener('pointermove',e=>{
+  if(Z.drag!=='s' && Z.drag!=='e') return;
+  const r=ztl.getBoundingClientRect(), W=Z.w1-Z.w0;
+  const p=S.phrases[Z.i], t=Z.w0+(e.clientX-r.left)/r.width*W;
+  if(Z.drag==='s') p.s=Math.max(bounds(Z.i).lo, Math.min(p.e-0.2,t)); else p.e=Math.min(bounds(Z.i).hi, Math.max(p.s+0.2,t));
+  drawZ();
+});
+ztl.addEventListener('pointerup',()=>{
+  const d=Z.drag; Z.drag=null; if(d!=='s' && d!=='e') return;
+  zWindow(false); edited(false); drawZ();
+  const p=S.phrases[Z.i];
+  if(d==='s') zPlay(p.s, Math.min(p.e,p.s+2.5)); else zPlay(Math.max(p.s,p.e-2.5), p.e);
+});
+
 // ---------- Canviar el nom (toca el títol) ----------
 document.querySelectorAll('.ren').forEach(el=>{
   el.addEventListener('focus',()=>{ el.dataset.old=el.textContent; });
