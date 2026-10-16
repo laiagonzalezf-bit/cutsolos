@@ -837,7 +837,16 @@ function setEditing(on){
   $('pads').classList.toggle('editing',S.editing);
   if(on) stop();
 }
-$('bEdit').onclick=()=>setEditing(!S.editing);
+$('bEdit').onclick=()=>{
+  // si sona una frase, el llapis l'obre directament per editar-la
+  const P=S.play;
+  if(P && !S.editing){
+    const t=P.now(); let i=P.a;
+    for(let k=P.a;k<=P.b;k++){ if(t>=S.phrases[k].s-0.02) i=k; }
+    openSheet(i); return;
+  }
+  setEditing(!S.editing);
+};
 function openSheet(i){
   stop(); Z.i=i; Z.cur=null; zWindow(true);
   $('sheet').hidden=false; $('sheetBg').hidden=false; drawZ();
