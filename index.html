@@ -94,6 +94,47 @@ main{flex:1;display:flex;flex-direction:column;padding:16px;gap:14px}
 .dock button[aria-pressed="true"]{background:var(--rk-groc);border-color:var(--rk-groc);color:var(--rk-tinta)}
 .dock button.stop{background:var(--ink);color:var(--bg)}
 .dock button:disabled{opacity:.35}
+.trim{display:flex;flex-direction:column;gap:14px}
+.trim .song span{display:block}
+.tl{position:relative;height:96px;border-radius:16px;background:var(--pad-bg);overflow:hidden;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none}
+.bars{position:absolute;inset:10px 0;display:flex;align-items:center;gap:1px;padding:0 2px}
+.bars i{flex:1;background:#5A534F;border-radius:2px;min-height:2px}
+.bars i.in{background:var(--rk-groc)}
+.reg{position:absolute;top:0;bottom:0;background:rgba(253,190,16,.16);border-left:0;border-right:0;pointer-events:none}
+.h{position:absolute;top:0;bottom:0;width:30px;margin-left:-15px;display:flex;justify-content:center;cursor:ew-resize}
+.h span{width:4px;height:100%;background:var(--rk-groc);border-radius:2px;position:relative}
+.h span::before{content:"";position:absolute;top:50%;left:50%;width:18px;height:34px;margin:-17px 0 0 -9px;background:var(--rk-groc);border-radius:7px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.ph{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#fff;pointer-events:none;box-shadow:0 0 6px rgba(255,255,255,.6)}
+.tlt{display:flex;justify-content:space-between;font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:-8px}
+.tp{display:flex;align-items:center;justify-content:center;gap:12px}
+.round{width:64px;height:64px;border-radius:50%;border:0;background:var(--ink);color:var(--bg);display:grid;place-items:center;cursor:pointer}
+.round svg{width:28px;height:28px}
+.pill{font:inherit;font-weight:700;font-size:14px;border:2px solid var(--ink);background:transparent;color:var(--ink);border-radius:999px;padding:8px 14px;cursor:pointer;white-space:nowrap}
+.pill.wide{width:100%;padding:11px}
+.marks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mk{display:flex;flex-direction:column;gap:8px}
+.mark{font:inherit;font-weight:700;font-size:15px;line-height:1.2;min-height:58px;border:0;border-radius:16px;background:var(--rk-groc);color:var(--rk-tinta);padding:10px;cursor:pointer;box-shadow:inset 0 -4px 0 rgba(0,0,0,.15)}
+.mark:active{transform:scale(.97)}
+.nud{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.nud b{font-family:var(--mono);font-size:15px}
+.nud button{font:inherit;font-size:13px;font-weight:700;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:6px 9px;cursor:pointer}
+.go{font:inherit;font-weight:700;font-size:18px;border:0;border-radius:18px;background:var(--ink);color:var(--rk-groc);padding:16px;cursor:pointer}
+.link{font:inherit;font-size:14px;background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:4px}
+.lib h2{font-family:var(--display);font-size:20px;margin:0 0 10px}
+#libList{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:stretch;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.item .open{flex:1;min-width:0;text-align:left;font:inherit;color:var(--ink);background:none;border:0;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:12px}
+.item .ic{flex:none;width:42px;height:42px;border-radius:12px;background:var(--rk-tinta);color:var(--rk-groc);display:grid;place-items:center;font-family:var(--mono);font-weight:700}
+.item .tx{min-width:0}
+.item .tx b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .tx span{font-size:13px;color:var(--muted)}
+.item .del{flex:none;font:inherit;font-size:13px;font-weight:700;border:0;border-left:1px solid var(--line);background:none;color:var(--muted);padding:0 14px;cursor:pointer;min-width:52px}
+.item .del.sure{background:#C0392B;color:#fff}
+.drop.small{flex:none;min-height:0;padding:20px;gap:8px;flex-direction:row;flex-wrap:wrap}
+.drop.small .big,.drop.small p{display:none}
+.drop.small h2{font-size:18px}
+.toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--rk-tinta);color:var(--rk-groc);font-weight:700;font-size:14px;padding:8px 16px;border-radius:999px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:50}
+.toast.on{opacity:1}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .foot{font-size:12px;color:var(--muted);text-align:center;padding:4px 0 8px}
 .foot a{color:inherit}
@@ -109,11 +150,17 @@ main{flex:1;display:flex;flex-direction:column;padding:16px;gap:14px}
   </header>
 
   <main>
+    <!-- 0. Cançons desades -->
+    <section id="lib" class="lib" hidden>
+      <h2>Les meves cançons</h2>
+      <div id="libList"></div>
+    </section>
+
     <!-- 1. Penja l'àudio -->
     <label class="drop" id="drop" for="file">
       <div class="big"><svg viewBox="0 0 24 24" fill="none" stroke="#FDBE10" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
-      <h2>Penja un solo</h2>
-      <p>Un àudio de saxo, violí, trompeta, guitarra… El tallarem en frases perquè les puguis escoltar una a una.</p>
+      <h2>Penja una cançó</h2>
+      <p>Una cançó o només el solo (saxo, violí, trompeta, guitarra…). Triaràs on és el solo i el tallarem en frases.</p>
       <span class="cta">Tria l'àudio</span>
       <input id="file" class="sr" type="file" accept="audio/*,video/mp4,.mp3,.m4a,.wav,.aac,.ogg,.flac,.aif,.aiff">
     </label>
@@ -122,10 +169,46 @@ main{flex:1;display:flex;flex-direction:column;padding:16px;gap:14px}
     <div class="busy" id="busy" hidden><div class="spin"></div><div id="busyMsg">Buscant les frases…</div></div>
     <div class="err" id="err" hidden></div>
 
-    <!-- 3. Pads -->
+    <!-- 3. Tria el tros del solo -->
+    <section id="trim" class="trim" hidden>
+      <div class="song"><div class="name"><b id="trimName"></b><span>On és el solo? Posa la cançó i marca on comença i on acaba.</span></div></div>
+
+      <div class="tl" id="tl" aria-label="Cançó">
+        <div class="bars" id="bars"></div>
+        <div class="reg" id="reg"></div>
+        <div class="h ha" id="ha" aria-label="Inici del solo"><span></span></div>
+        <div class="h hb" id="hb" aria-label="Final del solo"><span></span></div>
+        <div class="ph" id="phead"></div>
+      </div>
+      <div class="tlt"><span id="tNow">0:00</span><span id="tDur"></span></div>
+
+      <div class="tp">
+        <button class="round" id="tPlay" aria-label="Reprodueix"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button>
+        <button class="pill" id="tBack">−5 s</button>
+        <button class="pill" id="tFwd">+5 s</button>
+      </div>
+
+      <div class="marks">
+        <div class="mk">
+          <button class="mark" id="mA">El solo comença aquí</button>
+          <div class="nud"><button data-n="a,-1">−1 s</button><b id="vA">0:00</b><button data-n="a,1">+1 s</button></div>
+        </div>
+        <div class="mk">
+          <button class="mark" id="mB">Acaba aquí</button>
+          <div class="nud"><button data-n="b,-1">−1 s</button><b id="vB">0:00</b><button data-n="b,1">+1 s</button></div>
+        </div>
+      </div>
+
+      <button class="pill wide" id="tHear">▶ Escolta només el tros triat</button>
+      <button class="go" id="tGo">Talla el solo en frases</button>
+      <button class="link" id="tAll">Fes servir tota la cançó</button>
+    </section>
+
+    <!-- 4. Pads -->
     <section id="board" hidden>
       <div class="song" style="margin-bottom:12px">
         <div class="name"><b id="songName"></b><span id="songInfo"></span></div>
+        <button class="pill" id="bTrim">Canvia el tros</button>
       </div>
       <div class="pad-wrap"><div class="pads" id="pads" role="group" aria-label="Frases"></div></div>
       <p class="hint" id="hint"></p>
@@ -155,7 +238,8 @@ main{flex:1;display:flex;flex-direction:column;padding:16px;gap:14px}
       Atura
     </button>
   </nav>
-  <div class="foot" id="foot" hidden>Rockin · <a href="https://rockin.cat" target="_blank" rel="noopener">rockin.cat</a> · L'àudio no surt del teu dispositiu.</div>
+  <div class="toast" id="toast">Desat</div>
+  <div class="foot" id="foot" hidden>Rockin · <a href="https://rockin.cat" target="_blank" rel="noopener">rockin.cat</a> · Es desa en aquest dispositiu.</div>
 </div>
 
 <script>
@@ -170,19 +254,28 @@ function getCtx(){
   if(S.ctx.state==='suspended') S.ctx.resume();
   return S.ctx;
 }
-async function loadFile(f){
+async function loadFile(f, rec){
   if(!f) return;
   stop(); show('busy'); $('busyMsg').textContent='Llegint l\'àudio…';
   try{
     const ctx = getCtx();
     const ab = await f.arrayBuffer();
     const buf = await new Promise((res,rej)=>{ const p = ctx.decodeAudioData(ab, res, rej); if(p&&p.catch) p.catch(rej); });
-    S.buf = buf; S.name = f.name.replace(/\.[^.]+$/,'');
+    S.buf = buf; S.name = rec ? rec.name : (f.name||'Cançó').replace(/\.[^.]+$/,'');
+    S.blob = f; S.sid = rec ? rec.id : 's'+Date.now();
     $('busyMsg').textContent='Buscant les frases…';
     await new Promise(r=>setTimeout(r,30));
     S.an = await analyse(buf);
     S.join=false; S.anchor=-1; S.last=null; setJoin(false);
-    detect(); show('board');
+    if(rec){
+      S.region = rec.region || {a:0,b:buf.duration};
+      S.level = rec.level ?? 2; $('detail').value = S.level;
+      detect(); show('board');
+    } else {
+      S.region={a:0,b:buf.duration}; S.level=2; $('detail').value=2;
+      if(buf.duration > 75){ openTrim(); save(); }   // cançó sencera: primer tria el tros
+      else { detect(); show('board'); }
+    }
   }catch(e){
     console.error(e);
     show('drop');
@@ -244,9 +337,15 @@ const LEVELS = [
 ];
 function detect(){
   const A=S.an, L=LEVELS[S.level], fps=1/0.01;
-  const thr = A.floor + L.absK*(A.peak-A.floor);
+  const R=S.region||{a:0,b:A.dur};
+  const i0=Math.max(0,Math.floor(R.a*fps)), i1=Math.min(A.n,Math.ceil(R.b*fps));
+  // llindars calculats només dins del tros triat
+  const sub=Float32Array.from(A.db.subarray(i0,Math.max(i0+1,i1))).sort();
+  const pct=p=>sub[Math.min(sub.length-1,Math.max(0,Math.floor(p*(sub.length-1))))];
+  const floor=pct(0.08), peak=pct(0.98);
+  const thr = floor + L.absK*(peak-floor);
   const act = new Uint8Array(A.n);
-  for(let i=0;i<A.n;i++) act[i] = (A.db[i]>thr && A.db[i]>A.lmax[i]-L.depth) ? 1:0;
+  for(let i=i0;i<i1;i++) act[i] = (A.db[i]>thr && A.db[i]>A.lmax[i]-L.depth) ? 1:0;
   // trams actius
   let seg=[]; let s=-1;
   for(let i=0;i<=A.n;i++){
@@ -264,17 +363,17 @@ function detect(){
     return (pv && g[0]-pv[1]<.6*fps) || (nx && nx[0]-g[1]<.6*fps);
   });
   // si no hi ha res a dalt (tot molt pla), parteix el tot
-  if(!seg.length) seg=[[0,A.n]];
+  if(!seg.length) seg=[[i0,i1]];
   // frases massa llargues: talla per la vall més fonda
   let out=[]; for(const g of seg) out.push(...splitLong(g,L));
   // frases massa curtes: enganxa-les a la veïna més propera
   out = absorbShort(out, L.minLen*fps, 1.0*fps);
   // a segons, amb marges
   const sec = i => i*A.hop/A.sr;
-  const ph = out.map(([a,b])=>({ s: Math.max(0, sec(a)-0.05), e: Math.min(A.dur, sec(b)+A.win/A.sr+0.15) }));
+  const ph = out.map(([a,b])=>({ s: Math.max(R.a, sec(a)-0.05), e: Math.min(R.b, sec(b)+A.win/A.sr+0.15) }));
   for(let k=1;k<ph.length;k++){ if(ph[k].s < ph[k-1].e){ const m=(ph[k].s+ph[k-1].e)/2; ph[k-1].e=m; ph[k].s=m; } }
   S.phrases = ph; S.anchor=-1; S.last=null;
-  render();
+  render(); save();
 }
 function mergeIf(seg, test){
   const o=[]; for(const g of seg){ const p=o[o.length-1]; if(p && test(p,g)) p[1]=g[1]; else o.push([g[0],g[1]]); } return o;
@@ -312,18 +411,22 @@ function absorbShort(seg, minF, reachF){
 // ---------- Pantalla ----------
 function show(which){
   $('drop').hidden = which!=='drop';
+  if(which==='drop') renderLib(); else $('lib').hidden=true;
   $('busy').hidden = which!=='busy';
   $('board').hidden = which!=='board';
+  $('trim').hidden = which!=='trim';
   $('dock').hidden = which!=='board';
   $('foot').hidden = which!=='board';
-  $('bNew').hidden = which!=='board';
+  $('bNew').hidden = which!=='board' && which!=='trim';
   if(which!=='drop') $('err').hidden=true;
 }
 const fmtT = t => { const m=Math.floor(t/60), s=Math.floor(t%60); return m+':'+String(s).padStart(2,'0'); };
 const fmtD = t => t.toFixed(1).replace('.',',')+' s';
 function render(){
   $('songName').textContent = S.name;
-  $('songInfo').textContent = S.phrases.length+' frases · '+fmtT(S.an.dur);
+  const R=S.region, whole = !R || (R.a<0.5 && R.b>S.an.dur-0.5);
+  $('songInfo').textContent = S.phrases.length+' frases · '+(whole ? fmtT(S.an.dur) : 'de '+fmtT(R.a)+' a '+fmtT(R.b));
+  $('bTrim').hidden = S.an.dur<=20;
   const box=$('pads'); box.innerHTML='';
   S.phrases.forEach((p,i)=>{
     const b=document.createElement('button');
@@ -411,7 +514,84 @@ $('bJoin').onclick=()=>setJoin(!S.join);
 $('bLoop').onclick=()=>{ S.loop=!S.loop; $('bLoop').setAttribute('aria-pressed',S.loop); if(!S.loop) clearTimeout(S.loopTimer); updDock(); };
 $('bAgain').onclick=()=>{ if(S.last) playRange(S.last.a,S.last.b); };
 $('bStop').onclick=()=>{ stop(); if(S.loop){ S.loop=false; $('bLoop').setAttribute('aria-pressed',false); } updDock(); };
-$('bNew').onclick=()=>{ stop(); $('file').value=''; show('drop'); };
+$('bNew').onclick=()=>{ stop(); tStop(); $('file').value=''; show('drop'); };
+$('bTrim').onclick=()=>{ stop(); openTrim(); };
+
+// ---------- Tria el tros ----------
+const T={ src:null, t0:0, off:0, pos:0, end:null, drag:null };
+function openTrim(){
+  $('trimName').textContent=S.name;
+  $('tDur').textContent=fmtT(S.an.dur);
+  // silueta d'energia (només orientativa)
+  const A=S.an, N=Math.min(160, Math.max(40, Math.round(A.dur))), bars=$('bars'); bars.innerHTML='';
+  const per=A.n/N, lo=A.floor, hi=A.peak;
+  for(let k=0;k<N;k++){
+    let m=0,c=0; for(let i=Math.floor(k*per);i<Math.floor((k+1)*per);i++){ m+=A.db[i]; c++; }
+    const v=Math.max(0,Math.min(1,((c?m/c:lo)-lo)/(hi-lo||1)));
+    const el=document.createElement('i'); el.style.height=(8+v*92)+'%'; bars.appendChild(el);
+  }
+  T.pos=S.region.a; show('trim'); drawTrim();
+}
+const tNow=()=> T.src ? Math.min(S.an.dur, T.off + (S.ctx.currentTime-T.t0)) : T.pos;
+function drawTrim(){
+  const D=S.an.dur, R=S.region, pc=t=>(100*t/D)+'%';
+  $('reg').style.left=pc(R.a); $('reg').style.width=(100*(R.b-R.a)/D)+'%';
+  $('ha').style.left=pc(R.a); $('hb').style.left=pc(R.b);
+  const t=tNow(); $('phead').style.left=pc(t); $('tNow').textContent=fmtT(t);
+  $('vA').textContent=fmtT(R.a); $('vB').textContent=fmtT(R.b);
+  const bs=$('bars').children, n=bs.length;
+  for(let k=0;k<n;k++){ const c=(k+.5)/n*D; bs[k].classList.toggle('in', c>=R.a && c<=R.b); }
+  $('tPlay').innerHTML = T.src ? '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>'
+                               : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>';
+}
+function tPlayFrom(t, end){
+  const ctx=getCtx(); tStop(true);
+  t=Math.max(0,Math.min(S.an.dur-0.05,t));
+  const src=ctx.createBufferSource(); src.buffer=S.buf; src.connect(ctx.destination);
+  T.t0=ctx.currentTime+0.02; T.off=t; T.end=end||null;
+  end ? src.start(T.t0,t,Math.max(0.05,end-t)) : src.start(T.t0,t);
+  T.src=src; src.onended=()=>{ if(T.src===src){ T.pos=tNow(); T.src=null; drawTrim(); } };
+  drawTrim(); requestAnimationFrame(tLoop);
+}
+function tStop(keep){ if(T.src){ T.pos=tNow(); const s=T.src; T.src=null; try{s.onended=null;s.stop();}catch(e){} } if(!keep) drawTrim(); }
+function tLoop(){ if(!T.src) return; drawTrim(); requestAnimationFrame(tLoop); }
+function setMark(which,t){
+  const R=S.region, D=S.an.dur; t=Math.max(0,Math.min(D,t));
+  if(which==='a'){ R.a=Math.min(t, R.b-1); } else { R.b=Math.max(t, R.a+1); }
+  drawTrim();
+}
+$('tPlay').onclick=()=>{ T.src ? tStop() : tPlayFrom(T.pos>=S.an.dur-0.1?0:T.pos); };
+$('tBack').onclick=()=>{ const t=tNow()-5; T.src ? tPlayFrom(t) : (T.pos=Math.max(0,t), drawTrim()); };
+$('tFwd').onclick=()=>{ const t=tNow()+5; T.src ? tPlayFrom(t) : (T.pos=Math.min(S.an.dur,t), drawTrim()); };
+$('mA').onclick=()=>{ const t=tNow(); if(S.region.b<=t+1) S.region.b=Math.min(S.an.dur,t+20); setMark('a',t); };
+$('mB').onclick=()=>{ setMark('b',tNow()); tStop(); };
+document.querySelectorAll('.nud button').forEach(b=>b.onclick=()=>{
+  const [w,d]=b.dataset.n.split(','); const R=S.region;
+  setMark(w,(w==='a'?R.a:R.b)+(+d));
+  if(w==='a') tPlayFrom(R.a); else tPlayFrom(Math.max(R.a,R.b-3),R.b);   // escolta el punt que has mogut
+});
+$('tHear').onclick=()=>tPlayFrom(S.region.a,S.region.b);
+$('tGo').onclick=()=>{ tStop(); detect(); show('board'); };
+$('tAll').onclick=()=>{ tStop(); S.region={a:0,b:S.an.dur}; detect(); show('board'); };
+// arrossegar marcadors o tocar la barra per moure't
+const tl=$('tl');
+tl.addEventListener('pointerdown',e=>{
+  const r=tl.getBoundingClientRect(), D=S.an.dur, x=e.clientX-r.left, t=x/r.width*D;
+  const xa=S.region.a/D*r.width, xb=S.region.b/D*r.width;
+  const da=Math.abs(x-xa), db=Math.abs(x-xb);
+  if(Math.min(da,db)<22){ T.drag = da<=db ? 'a':'b'; }
+  else { T.drag='seek'; T.src ? tPlayFrom(t) : (T.pos=t, drawTrim()); }
+  tl.setPointerCapture(e.pointerId);
+});
+tl.addEventListener('pointermove',e=>{
+  if(!T.drag || T.drag==='seek') return;
+  const r=tl.getBoundingClientRect(); setMark(T.drag,(e.clientX-r.left)/r.width*S.an.dur);
+});
+tl.addEventListener('pointerup',()=>{
+  if(T.drag==='a') tPlayFrom(S.region.a);
+  else if(T.drag==='b') tPlayFrom(Math.max(S.region.a,S.region.b-3),S.region.b);
+  T.drag=null;
+});
 $('detail').oninput=e=>{ stop(); S.level=+e.target.value; detect(); };
 $('file').onchange=e=>loadFile(e.target.files[0]);
 const drop=$('drop');
@@ -428,6 +608,49 @@ document.addEventListener('keydown',e=>{
     playRange(i,i);
   }
 });
+// ---------- Sessions desades (IndexedDB, en aquest dispositiu) ----------
+const DB={name:'frase-a-frase', st:'sessions'};
+function idb(){ return new Promise((res,rej)=>{ let r; try{ r=indexedDB.open(DB.name,1); }catch(e){ return rej(e); }
+  r.onupgradeneeded=()=>r.result.createObjectStore(DB.st,{keyPath:'id'}); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function tx(mode, fn){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction(DB.st,mode); const st=t.objectStore(DB.st);
+  const out=fn(st); t.oncomplete=()=>res(out && out.result!==undefined ? out.result : out); t.onerror=()=>rej(t.error); }); }
+let saveT=null;
+function save(){
+  if(!S.blob || !S.an) return;
+  clearTimeout(saveT);
+  saveT=setTimeout(async()=>{
+    const rec={ id:S.sid, name:S.name, blob:S.blob, region:{a:S.region.a,b:S.region.b}, level:S.level,
+                dur:S.an.dur, n:S.phrases.length, saved:Date.now() };
+    try{ await tx('readwrite', st=>st.put(rec)); toast('Desat'); }
+    catch(e){ console.warn('No es pot desar',e); }
+  },600);
+}
+async function renderLib(){
+  let all=[]; try{ all = await tx('readonly', st=>st.getAll()); }catch(e){}
+  all=(all||[]).sort((a,b)=>b.saved-a.saved);
+  const lib=$('lib'), list=$('libList'); list.innerHTML='';
+  lib.hidden = !all.length || $('drop').hidden; $('drop').classList.toggle('small', all.length>0);
+  all.forEach(r=>{
+    const whole = r.region.a<0.5 && r.region.b>r.dur-0.5;
+    const el=document.createElement('div'); el.className='item';
+    el.innerHTML='<button class="open"><span class="ic">'+(r.n||'·')+'</span><span class="tx"><b></b><span></span></span></button><button class="del" aria-label="Esborra">✕</button>';
+    el.querySelector('b').textContent=r.name;
+    el.querySelector('.tx span').textContent=(r.n?r.n+' frases · ':'')+(whole?fmtT(r.dur):'solo de '+fmtT(r.region.a)+' a '+fmtT(r.region.b))+' · '+ago(r.saved);
+    el.querySelector('.open').onclick=()=>loadFile(r.blob, r);
+    const del=el.querySelector('.del');
+    del.onclick=async()=>{
+      if(!del.classList.contains('sure')){ del.classList.add('sure'); del.textContent='Esborra'; setTimeout(()=>{del.classList.remove('sure');del.textContent='✕';},3000); return; }
+      try{ await tx('readwrite', st=>st.delete(r.id)); }catch(e){} renderLib();
+    };
+    list.appendChild(el);
+  });
+}
+function ago(t){ const d=(Date.now()-t)/1000; if(d<90) return 'ara mateix'; if(d<3600) return 'fa '+Math.round(d/60)+' min';
+  if(d<86400) return 'fa '+Math.round(d/3600)+' h'; const n=Math.round(d/86400); return n===1?'ahir':'fa '+n+' dies'; }
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('on'),1200); }
+try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
+renderLib();
+
 // Prova automàtica: window.__frase
 window.__frase = S;
 </script>
