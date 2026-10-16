@@ -81,9 +81,9 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 
 /* pads */
 .pad-wrap{margin-top:4px}
-.pads{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.pads{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 @media (min-width:430px){.pads{grid-template-columns:repeat(4,1fr)}}
-.pad{position:relative;aspect-ratio:1;border:0;border-radius:50%;background:var(--pad);color:var(--pad-ink);cursor:pointer;overflow:hidden;padding:0;
+.pad{position:relative;aspect-ratio:1;border:0;border-radius:14px;background:var(--pad);color:var(--pad-ink);cursor:pointer;overflow:hidden;padding:0;
   transition:transform .08s ease;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .pad:active{transform:scale(.95)}
 .pad .fill{position:absolute;inset:0;background:var(--lit);transform-origin:left;transform:scaleX(var(--p,0));opacity:0}
