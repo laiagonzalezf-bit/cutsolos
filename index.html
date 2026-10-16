@@ -688,13 +688,15 @@ const padAt=(x,y)=>{ const el=document.elementFromPoint(x,y); const p=el&&el.clo
 const pads=$('pads');
 pads.addEventListener('pointerdown',e=>{
   const el=e.target.closest('.pad'); if(!el || G.id!==null) return;
-  G.id=e.pointerId; G.i=+el.dataset.i; G.x=e.clientX; G.y=e.clientY;
+  G.id=e.pointerId; G.i=+el.dataset.i; G.x=e.clientX; G.y=e.clientY; G.mouse = e.pointerType==='mouse';
   if(S.editing){ G.timer=-1; return; }
-  G.timer=setTimeout(()=>{ G.timer=null; stop(true); S.sel={a:G.i,b:G.i}; paintSel(); hint('Arrossega fins a l\'última frase i deixa anar.'); try{navigator.vibrate&&navigator.vibrate(15)}catch(_){} },280);
+  G.timer=setTimeout(()=>{ G.timer=null; stop(true); S.sel={a:G.i,b:G.i}; paintSel(); hint('Arrossega fins a l\'última frase i deixa anar.'); try{navigator.vibrate&&navigator.vibrate(15)}catch(_){} },220);
 });
 pads.addEventListener('pointermove',e=>{
   if(e.pointerId!==G.id) return;
   if(S.sel){ const i=padAt(e.clientX,e.clientY); if(i>=0 && i!==S.sel.b){ S.sel.b=i; paintSel(); hint('Frases <b>'+(Math.min(S.sel.a,i)+1)+' a '+(Math.max(S.sel.a,i)+1)+'</b> · deixa anar per escoltar-les.'); } }
+  // amb el ratolí no cal esperar: en passar a un altre pad amb el botó premut, ja selecciona
+  else if(G.mouse && G.timer>0){ const i=padAt(e.clientX,e.clientY); if(i>=0 && i!==G.i){ clearTimeout(G.timer); G.timer=null; stop(true); S.sel={a:G.i,b:i}; paintSel(); } }
   else if(G.timer && Math.hypot(e.clientX-G.x,e.clientY-G.y)>10){ if(G.timer>0) clearTimeout(G.timer); G.timer=null; G.id=null; }
 });
 // mentre selecciones, la pàgina no s'ha de desplaçar
