@@ -472,7 +472,7 @@ function setRate(r, quiet){
   $('rDown').disabled = r<=0.40; $('rUp').disabled = r>=1.30; $('rReset').disabled = r===1;
   if(quiet) return;
   save();
-  if(S.play){ const P=S.play; playRange(P.a,P.b); }
+  liveRate();
 }
 $('rDown').onclick=()=>setRate(S.rate-0.15);
 $('rUp').onclick=()=>setRate(S.rate+0.15);
@@ -493,20 +493,29 @@ function finished(P){
   if(S.loop){ S.loopTimer=setTimeout(()=>{ if(!S.play && S.loop && S.last && S.last.a===a && S.last.b===b) playRange(a,b); },350); }
   updDock();
 }
+function startMedia(a,b,from){
+  const el=mediaEl(), e=S.phrases[b].e, s=S.phrases[a].s;
+  const P={media:el,a,b,s,e,rate:S.rate,now:()=>el.currentTime}; S.play=P; S.last={a,b};
+  el.pause(); el.playbackRate=S.rate; el.defaultPlaybackRate=S.rate;
+  try{ el.currentTime=from; }catch(_){}
+  const go=()=>{ if(S.play===P){ el.playbackRate=S.rate; el.play().catch(()=>{}); } };
+  el.seeking ? el.addEventListener('seeked',go,{once:true}) : go();
+  el.onended=()=>finished(P);
+  paintSel(); updDock(); requestAnimationFrame(tick);
+}
+// canvi de tempo mentre sona: continua des del mateix punt, sense tornar a començar
+function liveRate(){
+  const P=S.play; if(!P) return;
+  if(P.media){ P.media.playbackRate=S.rate; P.rate=S.rate; return; }
+  const t=P.now(), a=P.a, b=P.b;
+  try{ P.src.onended=null; P.src.stop(); }catch(_){}
+  S.play=null; startMedia(a,b,t);
+}
 function playRange(a,b){
   const ctx=getCtx(); stop(true);
   const s=S.phrases[a].s, e=S.phrases[b].e, rate=S.rate;
   S.last={a,b};
-  if(rate!==1 && S.blob){
-    const el=mediaEl();
-    const P={media:el,a,b,s,e,rate,now:()=>el.currentTime}; S.play=P;
-    el.pause(); el.playbackRate=rate; el.defaultPlaybackRate=rate;
-    try{ el.currentTime=s; }catch(_){}
-    const go=()=>{ if(S.play===P){ el.playbackRate=rate; el.play().catch(()=>{}); } };
-    el.seeking ? el.addEventListener('seeked',go,{once:true}) : go();
-    el.onended=()=>finished(P);
-    paintSel(); updDock(); requestAnimationFrame(tick); return;
-  }
+  if(rate!==1 && S.blob){ startMedia(a,b,s); return; }
   const src=ctx.createBufferSource(); src.buffer=S.buf;
   const dur=e-s;
   const g=ctx.createGain(); src.connect(g); g.connect(ctx.destination);
@@ -567,8 +576,13 @@ function endGesture(e, cancel){
   if(S.sel){ const a=Math.min(S.sel.a,S.sel.b), b=Math.max(S.sel.a,S.sel.b); S.sel=null;
     if(!cancel){ if(a!==b){ S.group={a,b}; save(); } playRange(a,b); } else paintSel(); }
   else if(wasTap && !cancel){
-    const g=S.group, i=G.i;
-    if(g && i>=g.a && i<=g.b) playRange(g.a,g.b);   // dins del grup: sona el grup sencer
+    const g=S.group, i=G.i, now=performance.now();
+    const dbl = G.lastI===i && now-G.lastT<350;
+    G.lastI=i; G.lastT=now;
+    if(g && i>=g.a && i<=g.b){
+      if(dbl){ S.group=null; save(); playRange(i,i); G.lastI=-1; }   // doble toc: surt del grup
+      else playRange(g.a,g.b);                                         // dins del grup: sona el grup sencer
+    }
     else playRange(i,i);
   }
 }
