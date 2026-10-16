@@ -1,16 +1,17 @@
-# Frase a frase · Rockin
+# cutsolos
 
-Eina web per treure solos d'instrument d'orella (saxo, violí, trompeta, guitarra…).
-Penges una cançó (o només el solo), tries on és el solo, l'eina el talla en frases i te les mostra com a pads de launchpad:
+Per treure solos d'orella (saxo, violí, trompeta, guitarra…).
+Penges una cançó (o només el solo), tries on és el solo i l'app el talla en frases que surten com a pads.
 
-- **Toca un pad** per escoltar aquella frase.
-- **Junta**: toca la primera i l'última frase i sonen seguides.
+- **Toca un pad**: sona aquella frase.
+- **Mantén premut i arrossega**: tries diverses frases seguides i sonen juntes quan deixes anar.
 - **Repeteix**: la frase (o el grup) sona en bucle.
+- **Tempo −0,15 / +0,15 / Original**: alenteix sense canviar el to.
 - **Frases llargues ↔ curtes**: ajusta com de fi es talla.
-- **Tria el tros**: en una cançó sencera, marques on comença i acaba el solo.
-- **Les meves cançons**: tot es desa en el dispositiu i es pot tornar a obrir sense tornar a penjar l'àudio.
+- **Les meves cançons**: tot es desa en el dispositiu i no cal tornar a penjar l'àudio.
 
-Funciona al navegador (també al mòbil) i l'àudio es desa només en el dispositiu (no es puja enlloc).
-Tot és un sol fitxer: `index.html`.
+## A l'iPhone
+Obre la web amb Safari → botó Compartir → **Afegeix a la pantalla d'inici**.
+S'obre a pantalla completa com una app i funciona sense connexió.
 
-Rockin · [rockin.cat](https://rockin.cat)
+L'àudio no es puja enlloc: es queda al dispositiu.
