@@ -164,8 +164,6 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 <div class="app">
   <header class="topbar">
     <h1 class="logo" id="home" role="button" tabindex="0" aria-label="Les meves cançons"><svg class="mark-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2.5a9.5 9.5 0 0 0 0 19z" fill="currentColor"/><path d="M13 0.5a9.5 9.5 0 0 1 0 19z" fill="currentColor" opacity=".35"/></svg><span>cut<b>solos</b></span></h1>
-    <span class="grow"></span>
-    <button id="bNew" aria-label="Cançó nova"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
   </header>
 
   <main>
@@ -437,7 +435,6 @@ function show(which){
   $('board').hidden = which!=='board';
   $('trim').hidden = which!=='trim';
   $('dock').hidden = which!=='board';
-  $('bNew').hidden = which==='busy';
   if(which!=='drop') $('err').hidden=true;
 }
 const fmtT = t => { const m=Math.floor(t/60), s=Math.floor(t%60); return m+':'+String(s).padStart(2,'0'); };
@@ -581,7 +578,6 @@ pads.addEventListener('contextmenu',e=>e.preventDefault());
 $('bLoop').onclick=()=>{ S.loop=!S.loop; $('bLoop').setAttribute('aria-pressed',S.loop); if(!S.loop) clearTimeout(S.loopTimer); updDock(); };
 $('bAgain').onclick=()=>{ if(S.last) playRange(S.last.a,S.last.b); };
 $('bStop').onclick=()=>{ stop(); if(S.group){ S.group=null; paintSel(); save(); } if(S.loop){ S.loop=false; $('bLoop').setAttribute('aria-pressed',false); } updDock(); };
-$('bNew').onclick=()=>{ $('file').value=''; $('file').click(); };   // + : tria una cançó nova
 $('home').onclick=()=>{ stop(); tStop(); show('drop'); };          // logo: a les meves cançons
 $('home').onkeydown=e=>{ if(e.key==='Enter') $('home').click(); };
 $('bTrim').onclick=()=>{ stop(); openTrim(); };
