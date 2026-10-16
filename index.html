@@ -285,7 +285,7 @@ async function loadFile(f, rec){
     $('busyMsg').textContent='Buscant les frases…';
     await new Promise(r=>setTimeout(r,30));
     S.an = await analyse(buf);
-    S.sel=null; S.last=null; S.group=null; stretchCache.clear();
+    S.sel=null; S.last=null; S.group=null;
     if(rec){
       S.region = rec.region || {a:0,b:buf.duration};
       S.level = rec.level ?? 2; $('detail').value = S.level; setRate(rec.rate||1, true); S.pendingGroup = rec.group||null;
@@ -480,66 +480,59 @@ function setRate(r, quiet){
 $('rDown').onclick=()=>setRate(S.rate-0.15);
 $('rUp').onclick=()=>setRate(S.rate+0.15);
 $('rReset').onclick=()=>setRate(1);
-const stretchCache=new Map();
-function stretched(s,e,rate){
-  const key=s.toFixed(3)+'|'+e.toFixed(3)+'|'+rate;
-  if(stretchCache.has(key)) return stretchCache.get(key);
-  const sr=S.buf.sampleRate, a=Math.floor(s*sr), b=Math.min(S.buf.length,Math.ceil(e*sr));
-  const chs=[]; for(let c=0;c<Math.min(2,S.buf.numberOfChannels);c++) chs.push(S.buf.getChannelData(c).subarray(a,b));
-  const out=wsola(chs,rate);
-  const buf=S.ctx.createBuffer(out.length,out[0].length,sr); out.forEach((d,i)=>buf.copyToChannel(d,i));
-  if(stretchCache.size>30) stretchCache.delete(stretchCache.keys().next().value);
-  stretchCache.set(key,buf); return buf;
-}
-function wsola(chs,rate){
-  const n=chs[0].length,N=2048,Hs=512,Ha=Hs*rate,outLen=Math.floor(n/rate),delta=360;
-  const win=new Float32Array(N);for(let i=0;i<N;i++)win[i]=0.5-0.5*Math.cos(2*Math.PI*i/N);
-  const mono=new Float32Array(n);for(let i=0;i<n;i++){let v=0;for(const c of chs)v+=c[i];mono[i]=v/chs.length}
-  const outs=chs.map(()=>new Float32Array(outLen+N)),norm=new Float32Array(outLen+N);
-  let prevIn=-1;
-  for(let k=0;(k*Hs)<outLen;k++){
-    const nominal=Math.round(k*Ha);let best=nominal;
-    if(prevIn>=0){const target=prevIn+Hs;let bc=-Infinity;
-      for(let d=-delta;d<=delta;d+=4){const cand=nominal+d;if(cand<0||cand+N>n||target+N>n)continue;let c=0;for(let i=0;i<N;i+=4)c+=mono[cand+i]*mono[target+i];if(c>bc){bc=c;best=cand}}}
-    if(best+N>n)best=Math.max(0,n-N);
-    const o=k*Hs;
-    for(let ci=0;ci<chs.length;ci++){const x=chs[ci],y=outs[ci];for(let i=0;i<N&&o+i<y.length;i++)y[o+i]+=x[best+i]*win[i]}
-    for(let i=0;i<N&&o+i<norm.length;i++)norm[o+i]+=win[i];
-    prevIn=best;
-  }
-  return outs.map(y=>{const z=new Float32Array(outLen);for(let i=0;i<outLen;i++)z[i]=norm[i]>1e-3?y[i]/norm[i]:0;return z});
-}
-
 // ---------- So ----------
+// Tempo original: Web Audio (talls exactes). Tempo canviat: el motor del navegador (preservesPitch), que sona molt més net.
+function mediaEl(){
+  if(S.el && S.elFor===S.blob) return S.el;
+  if(S.el){ try{ S.el.pause(); URL.revokeObjectURL(S.el.src); }catch(e){} }
+  const el=new Audio(); el.preload='auto'; el.src=URL.createObjectURL(S.blob);
+  el.preservesPitch=true; el.webkitPreservesPitch=true; el.mozPreservesPitch=true;
+  S.el=el; S.elFor=S.blob; return el;
+}
+function finished(P){
+  if(S.play!==P) return;
+  clearLit(); S.play=null;
+  const {a,b}=P;
+  if(S.loop){ S.loopTimer=setTimeout(()=>{ if(!S.play && S.loop && S.last && S.last.a===a && S.last.b===b) playRange(a,b); },350); }
+  updDock();
+}
 function playRange(a,b){
   const ctx=getCtx(); stop(true);
   const s=S.phrases[a].s, e=S.phrases[b].e, rate=S.rate;
-  const src=ctx.createBufferSource();
-  let off=s, dur=e-s;
-  if(rate!==1){ src.buffer=stretched(s,e,rate); off=0; dur=src.buffer.duration; } else src.buffer=S.buf;
+  S.last={a,b};
+  if(rate!==1 && S.blob){
+    const el=mediaEl();
+    const P={media:el,a,b,s,e,rate,now:()=>el.currentTime}; S.play=P;
+    el.pause(); el.playbackRate=rate; el.defaultPlaybackRate=rate;
+    try{ el.currentTime=s; }catch(_){}
+    const go=()=>{ if(S.play===P){ el.playbackRate=rate; el.play().catch(()=>{}); } };
+    el.seeking ? el.addEventListener('seeked',go,{once:true}) : go();
+    el.onended=()=>finished(P);
+    paintSel(); updDock(); requestAnimationFrame(tick); return;
+  }
+  const src=ctx.createBufferSource(); src.buffer=S.buf;
+  const dur=e-s;
   const g=ctx.createGain(); src.connect(g); g.connect(ctx.destination);
   const t0=ctx.currentTime+0.03, f=0.012;
   g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(1,t0+f);
   g.gain.setValueAtTime(1,t0+dur-f); g.gain.linearRampToValueAtTime(0,t0+dur);
-  src.start(t0, off, dur);
-  const P={src,a,b,t0,s,dur,rate}; S.play=P; S.last={a,b};
-  src.onended=()=>{
-    if(S.play!==P) return;
-    clearLit(); S.play=null;
-    if(S.loop){ S.loopTimer=setTimeout(()=>{ if(!S.play && S.loop && S.last && S.last.a===a && S.last.b===b) playRange(a,b); },350); }
-    updDock();
-  };
+  src.start(t0, s, dur);
+  const P={src,a,b,s,e,rate:1,now:()=>s+Math.max(0,ctx.currentTime-t0)}; S.play=P;
+  src.onended=()=>finished(P);
   paintSel(); updDock(); requestAnimationFrame(tick);
 }
 function stop(silent){
   clearTimeout(S.loopTimer);
-  if(S.play){ const P=S.play; S.play=null; try{P.src.onended=null;P.src.stop();}catch(e){} }
+  if(S.play){ const P=S.play; S.play=null;
+    if(P.media){ P.media.onended=null; P.media.pause(); }
+    else { try{P.src.onended=null;P.src.stop();}catch(e){} } }
   clearLit(); if(!silent) updDock();
 }
 function clearLit(){ document.querySelectorAll('.pad.on').forEach(el=>{el.classList.remove('on');el.style.removeProperty('--p');}); }
 function tick(){
   const P=S.play; if(!P) return;
-  const t = P.s + Math.max(0, S.ctx.currentTime-P.t0)*P.rate;
+  const t = P.now();
+  if(P.media && t>=P.e){ P.media.pause(); finished(P); return; }   // final del tros
   const pads=$('pads').children;
   for(let i=P.a;i<=P.b;i++){
     const ph=S.phrases[i], el=pads[i]; if(!el) continue;
