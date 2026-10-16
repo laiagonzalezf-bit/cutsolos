@@ -355,15 +355,13 @@ async function loadFile(f, rec){
     $('busyMsg').textContent='Buscant les frases…';
     await new Promise(r=>setTimeout(r,30));
     S.an = await analyse(buf);
-    S.sel=null; S.last=null; S.group=null;
+    S.sel=null; S.last=null; S.group=null; S.edits={}; S.editsRegion=null;
     if(rec){
       S.region = rec.region || {a:0,b:buf.duration};
       S.level = rec.level ?? 2; $('detail').value = S.level; setRate(rec.rate||1, true); S.pendingGroup = rec.group||null;
-      if(rec.custom && rec.phrases && rec.phrases.length){
-        S.phrases = rec.phrases.map(p=>({s:p.s,e:p.e})); S.custom=true;
-        S.group = (S.pendingGroup && S.pendingGroup.b < S.phrases.length) ? S.pendingGroup : null; S.pendingGroup=null;
-        render();
-      } else detect();
+      S.edits = rec.edits || ((rec.custom && rec.phrases && rec.phrases.length) ? {[S.level]:rec.phrases} : {});
+      S.editsRegion = rec.editsRegion || S.region;
+      applyLevel();
       show('board');
     } else {
       S.region={a:0,b:buf.duration}; S.level=2; $('detail').value=2; setRate(1, true);
@@ -730,8 +728,8 @@ document.querySelectorAll('.nud button').forEach(b=>b.onclick=()=>{
   if(w==='a') tPlayFrom(R.a); else tPlayFrom(Math.max(R.a,R.b-3),R.b);   // escolta el punt que has mogut
 });
 $('tHear').onclick=()=>tPlayFrom(S.region.a,S.region.b);
-$('tGo').onclick=()=>{ tStop(); detect(); show('board'); };
-$('tAll').onclick=()=>{ tStop(); S.region={a:0,b:S.an.dur}; detect(); show('board'); };
+$('tGo').onclick=()=>{ tStop(); applyLevel(); show('board'); };
+$('tAll').onclick=()=>{ tStop(); S.region={a:0,b:S.an.dur}; applyLevel(); show('board'); };
 // arrossegar marcadors o tocar la barra per moure't
 const tl=$('tl');
 tl.addEventListener('pointerdown',e=>{
@@ -751,7 +749,18 @@ tl.addEventListener('pointerup',()=>{
   else if(T.drag==='b') tPlayFrom(Math.max(S.region.a,S.region.b-3),S.region.b);
   T.drag=null;
 });
-$('detail').oninput=e=>{ stop(); const had=S.custom; S.level=+e.target.value; detect(); if(had) toast('Frases tornades a tallar'); };
+$('detail').oninput=e=>{ stop(); S.level=+e.target.value; S.group=null; applyLevel(); };
+// cada llargada (llargues … curtes) guarda les seves pròpies frases editades
+function sameRegion(a,b){ return a && b && Math.abs(a.a-b.a)<0.01 && Math.abs(a.b-b.b)<0.01; }
+function applyLevel(){
+  if(!sameRegion(S.editsRegion,S.region)){ S.edits={}; S.editsRegion={a:S.region.a,b:S.region.b}; }
+  const ed=S.edits[S.level];
+  if(ed && ed.length){
+    S.phrases=ed.map(p=>({s:p.s,e:p.e})); S.custom=true; S.sel=null; S.last=null;
+    S.group=(S.pendingGroup && S.pendingGroup.b < S.phrases.length) ? S.pendingGroup : null; S.pendingGroup=null;
+    render(); save();
+  } else detect();
+}
 $('file').onchange=e=>loadFile(e.target.files[0]);
 const drop=$('drop');
 ['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over');}));
@@ -777,7 +786,7 @@ async function tx(mode, fn){ const db=await idb(); return new Promise((res,rej)=
 let saveT=null; const pend=new Map();
 function save(){
   if(!S.blob || !S.an) return;
-  pend.set(S.sid,{ id:S.sid, name:S.name, blob:S.blob, region:{a:S.region.a,b:S.region.b}, level:S.level, rate:S.rate, group:S.group, custom:!!S.custom, phrases:S.custom?S.phrases.map(p=>({s:p.s,e:p.e})):null,
+  pend.set(S.sid,{ id:S.sid, name:S.name, blob:S.blob, region:{a:S.region.a,b:S.region.b}, level:S.level, rate:S.rate, group:S.group, edits:S.edits||{}, editsRegion:S.editsRegion||null,
                    dur:S.an.dur, n:S.phrases.length, saved:Date.now() });
   clearTimeout(saveT); saveT=setTimeout(flushSave,500);
 }
@@ -877,7 +886,10 @@ function zSet(which,t){
   zWindow(false); edited(false); drawZ();
 }
 function edited(structural){
-  S.custom=true; if(structural){ S.group=null; } render(); save();
+  S.custom=true; if(structural){ S.group=null; }
+  if(!sameRegion(S.editsRegion,S.region)){ S.edits={}; S.editsRegion={a:S.region.a,b:S.region.b}; }
+  S.edits[S.level]=S.phrases.map(p=>({s:p.s,e:p.e}));
+  render(); save();
 }
 document.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{
   const [w,d]=b.dataset.z.split(','), p=S.phrases[Z.i];
