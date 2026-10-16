@@ -861,8 +861,14 @@ const bounds=i=>{ const pv=S.phrases[i-1], nx=S.phrases[i+1];
   return { lo: pv ? pv.s+0.2 : 0, hi: nx ? nx.e-0.2 : S.an.dur }; };
 function setEdge(i,which,t){
   const p=S.phrases[i], B=bounds(i), pv=S.phrases[i-1], nx=S.phrases[i+1];
-  if(which==='s'){ p.s=Math.max(B.lo, Math.min(p.e-0.2, t)); if(pv && pv.e>p.s) pv.e=p.s; }
-  else { p.e=Math.min(B.hi, Math.max(p.s+0.2, t)); if(nx && nx.s<p.e) nx.s=p.e; }
+  // la vora es comparteix amb la veïna: si allargues, la veïna s'escurça; si escurces, la veïna recupera el tros
+  if(which==='s'){
+    const old=p.s; p.s=Math.max(B.lo, Math.min(p.e-0.2, t)); const d=p.s-old;
+    if(pv){ if(d>0) pv.e=Math.min(p.s, pv.e+d); if(pv.e>p.s) pv.e=p.s; }
+  } else {
+    const old=p.e; p.e=Math.min(B.hi, Math.max(p.s+0.2, t)); const d=old-p.e;
+    if(nx){ if(d>0) nx.s=Math.max(p.e, nx.s-d); if(nx.s<p.e) nx.s=p.e; }
+  }
 }
 function zWindow(force){
   const p=S.phrases[Z.i], len=p.e-p.s, padT=Math.max(1.2, len*0.35);
