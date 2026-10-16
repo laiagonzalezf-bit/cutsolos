@@ -707,13 +707,11 @@ function endGesture(e, cancel){
   else if(wasTap && !cancel && S.editing){ openSheet(G.i); }
   else if(wasTap && !cancel){
     const g=S.group, i=G.i, now=performance.now();
-    const dbl = G.lastI===i && now-G.lastT<350;
-    G.lastI=i; G.lastT=now;
+    const dbl = now-(G.lastT||0)<300;          // doble toc a qualsevol pad: atura-ho tot (com el botó ■)
+    G.lastT = dbl ? 0 : now;
+    if(dbl){ $('bStop').disabled=false; $('bStop').click(); return; }
     const P=S.play, toggle=(x,y)=>{ if(P && P.a===x && P.b===y) stop(); else playRange(x,y); };   // segon toc: atura
-    if(g && i>=g.a && i<=g.b){
-      if(dbl){ S.group=null; save(); playRange(i,i); G.lastI=-1; }   // doble toc: surt del grup
-      else toggle(g.a,g.b);                                            // dins del grup: sona el grup sencer
-    }
+    if(g && i>=g.a && i<=g.b) toggle(g.a,g.b);   // dins del grup: sona el grup sencer
     else toggle(i,i);
   }
 }
