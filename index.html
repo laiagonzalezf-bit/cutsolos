@@ -35,7 +35,9 @@ button{font-family:inherit}
 
 .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   display:flex;align-items:center;gap:12px;padding:14px 20px 10px;padding-top:max(14px,env(safe-area-inset-top))}
-.topbar h1{font-size:17px;font-weight:600;margin:0;letter-spacing:-.01em}
+.topbar h1{margin:0;display:flex;align-items:center;gap:8px;font-size:21px;font-weight:400;letter-spacing:-.04em;line-height:1}
+.topbar h1 b{font-weight:800}
+.mark-logo{width:24px;height:24px}
 .topbar .grow{flex:1}
 .topbar button{width:36px;height:36px;border-radius:50%;background:var(--soft);color:var(--ink);border:0;padding:0;cursor:pointer;display:grid;place-items:center}
 .topbar button svg{width:20px;height:20px}
@@ -157,7 +159,7 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 <body>
 <div class="app">
   <header class="topbar">
-    <h1>cutsolos</h1>
+    <h1 class="logo"><svg class="mark-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2.5a9.5 9.5 0 0 0 0 19z" fill="currentColor"/><path d="M13 0.5a9.5 9.5 0 0 1 0 19z" fill="currentColor" opacity=".35"/></svg><span>cut<b>solos</b></span></h1>
     <span class="grow"></span>
     <button id="bNew" hidden aria-label="Nou àudio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
   </header>
@@ -173,7 +175,6 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
     <label class="drop" id="drop" for="file">
       <div class="big"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>
       <h2>Penja una cançó</h2>
-      <p>Una cançó o només el solo (saxo, violí, trompeta, guitarra…). Triaràs on és el solo i el tallarem en frases.</p>
       <span class="cta">Tria l'àudio</span>
       <input id="file" class="sr" type="file" accept="audio/*,video/mp4,.mp3,.m4a,.wav,.aac,.ogg,.flac,.aif,.aiff">
     </label>
@@ -184,7 +185,7 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 
     <!-- 3. Tria el tros del solo -->
     <section id="trim" class="trim" hidden>
-      <div class="song"><div class="name"><b id="trimName"></b><span>On és el solo? Posa la cançó i marca on comença i on acaba.</span></div></div>
+      <div class="song"><div class="name"><b id="trimName"></b></div></div>
 
       <div class="tl" id="tl" aria-label="Cançó">
         <div class="bars" id="bars"></div>
@@ -224,7 +225,6 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
         <button class="pill" id="bTrim">Tros</button>
       </div>
       <div class="pad-wrap"><div class="pads" id="pads" role="group" aria-label="Frases"></div></div>
-      <p class="hint" id="hint"></p>
       <div class="row tempo" style="margin-top:6px">
         <button class="chip" id="rDown">−0,15</button>
         <span class="val"><small>Tempo</small><span id="rVal">1,00×</span></span>
@@ -255,7 +255,6 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
     </button>
   </nav>
   <div class="toast" id="toast">Desat</div>
-  <div class="foot" id="foot" hidden>Les cançons es desen en aquest dispositiu.</div>
 </div>
 
 <script>
@@ -432,7 +431,6 @@ function show(which){
   $('board').hidden = which!=='board';
   $('trim').hidden = which!=='trim';
   $('dock').hidden = which!=='board';
-  $('foot').hidden = which!=='board';
   $('bNew').hidden = which!=='board' && which!=='trim';
   if(which!=='drop') $('err').hidden=true;
 }
@@ -453,9 +451,7 @@ function render(){
   });
   paintSel(); hint();
 }
-function hint(msg){
-  $('hint').innerHTML = msg || 'Toca una frase per escoltar-la. <b>Mantén premut i arrossega</b> per juntar-ne unes quantes.';
-}
+function hint(){}
 function paintSel(){
   const r = S.sel || S.last;
   document.querySelectorAll('.pad').forEach(el=>{
