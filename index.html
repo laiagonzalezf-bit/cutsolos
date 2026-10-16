@@ -3,11 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0D0B14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="cutsolos">
 <title>cutsolos</title>
 <link rel="manifest" href="manifest.webmanifest">
@@ -15,17 +14,12 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{
-  --bg:#FFFFFF; --ink:#111111; --muted:#8A8A8E; --soft:#F2F2F4; --line:#E5E5EA;
-  --pad:#F2F2F4; --pad-ink:#111111; --pad-sub:#9A9A9F; --lit:#111111; --lit-ink:#FFFFFF; --accent:#111111;
-  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",system-ui,sans-serif;
+  --bg:#0D0B14; --ink:#FFFFFF; --muted:#8B86A3; --soft:rgba(255,255,255,.08); --line:rgba(255,255,255,.08);
+  --pad:#1B1729; --pad-ink:#FFFFFF; --pad-sub:#7E7896; --lit:#FF3CAC; --lit-ink:#FFFFFF; --accent:#FF5FA0;
+  --grad:linear-gradient(90deg,#FF3CAC,#FF8A3D); --sel:#B57BFF;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,"Helvetica Neue",system-ui,sans-serif;
+  color-scheme:dark;
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){ --bg:#000000; --ink:#F5F5F7; --muted:#8E8E93; --soft:#1C1C1E; --line:#2C2C2E;
-    --pad:#1C1C1E; --pad-ink:#F5F5F7; --pad-sub:#7C7C80; --lit:#F5F5F7; --lit-ink:#000000; --accent:#F5F5F7; }
-}
-:root[data-theme="dark"]{ --bg:#000000; --ink:#F5F5F7; --muted:#8E8E93; --soft:#1C1C1E; --line:#2C2C2E;
-  --pad:#1C1C1E; --pad-ink:#F5F5F7; --pad-sub:#7C7C80; --lit:#F5F5F7; --lit-ink:#000000; --accent:#F5F5F7; }
-
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 html,body{margin:0;height:100%}
@@ -158,12 +152,43 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 .toast.on{opacity:.92}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .foot{font-size:12px;color:var(--muted);text-align:center;padding:4px 0 10px}
+
+/* ---- Tema «Gradient» ---- */
+body{background:radial-gradient(120% 55% at 50% 0%,#2A1B4A 0%,var(--bg) 62%) fixed,var(--bg)}
+.topbar,.dock{background:rgba(13,11,20,.55);border:0}
+.pad{background:linear-gradient(160deg,#221C35,#16131F);border-radius:20px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.pad .n{font-weight:700}
+.pad .fill{background:var(--grad)}
+.pad.on{box-shadow:0 10px 30px rgba(255,80,140,.45)}
+.pad.on .n,.pad.on .d{mix-blend-mode:normal;color:#fff}
+.pad.sel{box-shadow:0 0 0 2px var(--sel)}
+.pad.picking{background:linear-gradient(160deg,#5B3A9E,#3A2766);color:#fff}
+.pad.picking .d{color:#fff}
+.chip,.pill,.nud button{background:rgba(255,255,255,.08);color:#fff}
+.detail input{accent-color:var(--accent)}
+.dock button[aria-pressed="true"]{background:rgba(255,255,255,.1);color:#fff}
+.drop{border-color:rgba(255,255,255,.14)}
+.drop .big{background:rgba(255,255,255,.08)}
+.drop .cta,.go,.round{background:var(--grad);color:#fff}
+.mark{border-color:rgba(255,255,255,.25);color:#fff}
+.mark:active{background:var(--grad);border-color:transparent}
+.item .ic{background:linear-gradient(160deg,#221C35,#16131F)}
+.item .del.sure{color:#FF5F7A}
+.tl{background:rgba(255,255,255,.06)}
+.bars i{background:rgba(255,255,255,.14)}
+.bars i.in{background:linear-gradient(180deg,#FF3CAC,#FF8A3D)}
+.reg{background:rgba(255,95,160,.10)}
+.h span{background:#fff}
+.h span::before{background:#fff;border-color:#fff}
+.ph{background:#FF8A3D}
+.toast{background:rgba(255,255,255,.12);color:#fff;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.ren:focus{background:rgba(255,255,255,.08);box-shadow:0 0 0 6px rgba(255,255,255,.08)}
 </style>
 </head>
 <body>
 <div class="app">
   <header class="topbar">
-    <h1 class="logo" id="home" role="button" tabindex="0" aria-label="Les meves cançons"><svg class="mark-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2.5a9.5 9.5 0 0 0 0 19z" fill="currentColor"/><path d="M13 0.5a9.5 9.5 0 0 1 0 19z" fill="currentColor" opacity=".35"/></svg><span>cut<b>solos</b></span></h1>
+    <h1 class="logo" id="home" role="button" tabindex="0" aria-label="Les meves cançons"><svg class="mark-logo" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#FF3CAC"/><stop offset="1" stop-color="#FF8A3D"/></linearGradient></defs><path d="M11 2.5a9.5 9.5 0 0 0 0 19z" fill="url(#lg)"/><path d="M13 0.5a9.5 9.5 0 0 1 0 19z" fill="currentColor" opacity=".35"/></svg><span>cut<b>solos</b></span></h1>
   </header>
 
   <main>
@@ -515,7 +540,7 @@ function playRange(a,b){
   const ctx=getCtx(); stop(true);
   const s=S.phrases[a].s, e=S.phrases[b].e, rate=S.rate;
   S.last={a,b};
-  if(rate!==1 && S.blob){ startMedia(a,b,s); return; }
+  if(S.blob){ startMedia(a,b,s); return; }   // sempre el mateix motor: canviar el tempo és instantani
   const src=ctx.createBufferSource(); src.buffer=S.buf;
   const dur=e-s;
   const g=ctx.createGain(); src.connect(g); g.connect(ctx.destination);
