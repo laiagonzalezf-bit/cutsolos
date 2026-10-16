@@ -657,11 +657,12 @@ function endGesture(e, cancel){
     const g=S.group, i=G.i, now=performance.now();
     const dbl = G.lastI===i && now-G.lastT<350;
     G.lastI=i; G.lastT=now;
+    const P=S.play, toggle=(x,y)=>{ if(P && P.a===x && P.b===y) stop(); else playRange(x,y); };   // segon toc: atura
     if(g && i>=g.a && i<=g.b){
       if(dbl){ S.group=null; save(); playRange(i,i); G.lastI=-1; }   // doble toc: surt del grup
-      else playRange(g.a,g.b);                                         // dins del grup: sona el grup sencer
+      else toggle(g.a,g.b);                                            // dins del grup: sona el grup sencer
     }
-    else playRange(i,i);
+    else toggle(i,i);
   }
 }
 pads.addEventListener('pointerup',e=>endGesture(e,false));
