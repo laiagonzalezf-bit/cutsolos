@@ -349,6 +349,10 @@ async function loadFile(f, rec){
   try{
     const ctx = getCtx();
     const ab = await f.arrayBuffer();
+    // còpia nova per al reproductor (a l'iPhone, un àudio llegit de la memòria de l'app pot no sonar directament)
+    const copy = ab.slice(0);
+    S.playBlob = new Blob([copy], {type: (f.type && f.type!=='application/octet-stream') ? f.type : sniffType(copy)});
+    S.mediaBroken = false;
     const buf = await new Promise((res,rej)=>{ const p = ctx.decodeAudioData(ab, res, rej); if(p&&p.catch) p.catch(rej); });
     S.buf = buf; S.name = rec ? rec.name : (f.name||'Cançó').replace(/\.[^.]+$/,'');
     S.blob = f; S.sid = rec ? rec.id : 's'+Date.now();
@@ -553,14 +557,50 @@ function setRate(r, quiet){
 $('rDown').onclick=()=>setRate(S.rate-0.15);
 $('rUp').onclick=()=>setRate(S.rate+0.15);
 $('rReset').onclick=()=>setRate(1);
+const stretchCache=new Map();
+function stretched(s,e,rate){
+  const key=s.toFixed(3)+'|'+e.toFixed(3)+'|'+rate+'|'+S.sid;
+  if(stretchCache.has(key)) return stretchCache.get(key);
+  const sr=S.buf.sampleRate, a=Math.floor(s*sr), b=Math.min(S.buf.length,Math.ceil(e*sr));
+  const chs=[]; for(let c=0;c<Math.min(2,S.buf.numberOfChannels);c++) chs.push(S.buf.getChannelData(c).subarray(a,b));
+  const n=chs[0].length,N=2048,Hs=512,Ha=Hs*rate,outLen=Math.floor(n/rate),delta=360;
+  const win=new Float32Array(N);for(let i=0;i<N;i++)win[i]=0.5-0.5*Math.cos(2*Math.PI*i/N);
+  const mono=new Float32Array(n);for(let i=0;i<n;i++){let v=0;for(const c of chs)v+=c[i];mono[i]=v/chs.length}
+  const outs=chs.map(()=>new Float32Array(outLen+N)),norm=new Float32Array(outLen+N);
+  let prevIn=-1;
+  for(let k=0;(k*Hs)<outLen;k++){
+    const nominal=Math.round(k*Ha);let best=nominal;
+    if(prevIn>=0){const target=prevIn+Hs;let bc=-Infinity;
+      for(let d=-delta;d<=delta;d+=4){const cand=nominal+d;if(cand<0||cand+N>n||target+N>n)continue;let c=0;for(let i=0;i<N;i+=4)c+=mono[cand+i]*mono[target+i];if(c>bc){bc=c;best=cand}}}
+    if(best+N>n)best=Math.max(0,n-N);
+    const o=k*Hs;
+    for(let ci=0;ci<chs.length;ci++){const x=chs[ci],y=outs[ci];for(let i=0;i<N&&o+i<y.length;i++)y[o+i]+=x[best+i]*win[i]}
+    for(let i=0;i<N&&o+i<norm.length;i++)norm[o+i]+=win[i];
+    prevIn=best;
+  }
+  const out=outs.map(y=>{const z=new Float32Array(outLen);for(let i=0;i<outLen;i++)z[i]=norm[i]>1e-3?y[i]/norm[i]:0;return z});
+  const buf=S.ctx.createBuffer(out.length,Math.max(1,outLen),sr); out.forEach((d,i)=>buf.copyToChannel(d,i));
+  if(stretchCache.size>30) stretchCache.delete(stretchCache.keys().next().value);
+  stretchCache.set(key,buf); return buf;
+}
+
 // ---------- So ----------
 // Tempo original: Web Audio (talls exactes). Tempo canviat: el motor del navegador (preservesPitch), que sona molt més net.
+function sniffType(ab){
+  const u=new Uint8Array(ab,0,Math.min(12,ab.byteLength)), str=String.fromCharCode(...u);
+  if(str.startsWith('RIFF')) return 'audio/wav';
+  if(str.startsWith('OggS')) return 'audio/ogg';
+  if(str.startsWith('fLaC')) return 'audio/flac';
+  if(str.slice(4,8)==='ftyp') return 'audio/mp4';
+  if(str.startsWith('FORM')) return 'audio/aiff';
+  return 'audio/mpeg';
+}
 function mediaEl(){
-  if(S.el && S.elFor===S.blob) return S.el;
+  if(S.el && S.elFor===S.playBlob) return S.el;
   if(S.el){ try{ S.el.pause(); URL.revokeObjectURL(S.el.src); }catch(e){} }
-  const el=new Audio(); el.preload='auto'; el.src=URL.createObjectURL(S.blob);
+  const el=new Audio(); el.preload='auto'; el.src=URL.createObjectURL(S.playBlob||S.blob);
   el.preservesPitch=true; el.webkitPreservesPitch=true; el.mozPreservesPitch=true;
-  S.el=el; S.elFor=S.blob; return el;
+  S.el=el; S.elFor=S.playBlob; return el;
 }
 function finished(P){
   if(S.play!==P) return;
@@ -574,8 +614,12 @@ function startMedia(a,b,from,end){
   const P={media:el,a,b,s,e,rate:S.rate,now:()=>el.currentTime}; S.play=P; S.last={a,b};
   el.pause(); el.playbackRate=S.rate; el.defaultPlaybackRate=S.rate;
   try{ el.currentTime=from; }catch(_){}
-  const go=()=>{ if(S.play===P){ el.playbackRate=S.rate; el.play().catch(()=>{}); } };
-  el.seeking ? el.addEventListener('seeked',go,{once:true}) : go();
+  // play() dins del mateix toc (l'iPhone ho exigeix)
+  const fail=()=>{ if(S.play!==P) return; S.mediaBroken=true; el.pause(); S.play=null; playWA(a,b,from,e); };
+  const pr=el.play(); if(pr && pr.catch) pr.catch(fail);
+  el.onerror=fail;
+  // si en 0,9 s no ha avançat, passa al reproductor de reserva
+  setTimeout(()=>{ if(S.play===P && (el.paused || el.currentTime < from+0.05)) fail(); },900);
   el.onended=()=>finished(P);
   paintSel(); updDock(); requestAnimationFrame(tick);
 }
@@ -583,23 +627,31 @@ function startMedia(a,b,from,end){
 function liveRate(){
   const P=S.play; if(!P) return;
   if(P.media){ P.media.playbackRate=S.rate; P.rate=S.rate; return; }
-  const t=P.now(), a=P.a, b=P.b;
+  const t=P.now(), a=P.a, b=P.b, e=P.e;
   try{ P.src.onended=null; P.src.stop(); }catch(_){}
-  S.play=null; startMedia(a,b,t);
+  S.play=null;
+  if(S.mediaBroken) playWA(a,b,t,e); else startMedia(a,b,t);
 }
 function playRange(a,b){
   const ctx=getCtx(); stop(true);
   const s=S.phrases[a].s, e=S.phrases[b].e, rate=S.rate;
   S.last={a,b};
-  if(S.blob){ startMedia(a,b,s); return; }   // sempre el mateix motor: canviar el tempo és instantani
-  const src=ctx.createBufferSource(); src.buffer=S.buf;
-  const dur=e-s;
+  if(S.blob && !S.mediaBroken){ startMedia(a,b,s); return; }   // motor principal: canviar el tempo és instantani
+  playWA(a,b,s,e);
+}
+// reproductor de reserva (Web Audio). Amb tempo canviat fa servir WSOLA.
+function playWA(a,b,from,end){
+  const ctx=getCtx(); stop(true); S.last={a,b};
+  const s=from, e=end, rate=S.rate;
+  const src=ctx.createBufferSource();
+  let off=s, dur=e-s;
+  if(rate!==1){ src.buffer=stretched(s,e,rate); off=0; dur=src.buffer.duration; } else src.buffer=S.buf;
   const g=ctx.createGain(); src.connect(g); g.connect(ctx.destination);
   const t0=ctx.currentTime+0.03, f=0.012;
   g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(1,t0+f);
   g.gain.setValueAtTime(1,t0+dur-f); g.gain.linearRampToValueAtTime(0,t0+dur);
-  src.start(t0, s, dur);
-  const P={src,a,b,s,e,rate:1,now:()=>s+Math.max(0,ctx.currentTime-t0)}; S.play=P;
+  src.start(t0, off, dur);
+  const P={src,a,b,s,e,rate,now:()=>s+Math.max(0,ctx.currentTime-t0)*rate}; S.play=P;
   src.onended=()=>finished(P);
   paintSel(); updDock(); requestAnimationFrame(tick);
 }
@@ -917,7 +969,7 @@ document.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{
   zSet(w,(w==='s'?p.s:p.e)+(+d));
   if(w==='s') zPlay(p.s, Math.min(p.e,p.s+2.5)); else zPlay(Math.max(p.s,p.e-2.5), p.e);
 });
-function zPlay(from,to){ if(!S.blob) return; stop(true); startMedia(Z.i,Z.i,from,to); zLoop(); }
+function zPlay(from,to){ if(!S.blob) return; stop(true); S.mediaBroken ? playWA(Z.i,Z.i,from,to) : startMedia(Z.i,Z.i,from,to); zLoop(); }
 function zLoop(){ if(Z.loop) return; Z.loop=true;
   const f=()=>{ drawZ(); if(S.play && !$('sheet').hidden) requestAnimationFrame(f); else { Z.loop=false; drawZ(); } }; f(); }
 $('zPlay').onclick=()=>{ if(S.play){ stop(); drawZ(); } else { const p=S.phrases[Z.i]; zPlay(p.s,p.e); } };
