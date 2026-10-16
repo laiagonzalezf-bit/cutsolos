@@ -35,7 +35,7 @@ button{font-family:inherit}
 
 .topbar{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   display:flex;align-items:center;gap:12px;padding:14px 20px 10px;padding-top:max(14px,env(safe-area-inset-top))}
-.topbar h1{margin:0;display:flex;align-items:center;gap:8px;font-size:21px;font-weight:400;letter-spacing:-.04em;line-height:1}
+.topbar h1{cursor:pointer;margin:0;display:flex;align-items:center;gap:8px;font-size:21px;font-weight:400;letter-spacing:-.04em;line-height:1}
 .topbar h1 b{font-weight:800}
 .mark-logo{width:24px;height:24px}
 .topbar .grow{flex:1}
@@ -76,6 +76,8 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 /* capçalera de la cançó */
 .song{display:flex;align-items:center;gap:12px}
 .song .name{flex:1;min-width:0}
+.ren{outline:none;border-radius:8px;cursor:text;-webkit-user-select:text;user-select:text}
+.ren:focus{background:var(--soft);box-shadow:0 0 0 6px var(--soft);white-space:normal!important;text-overflow:clip!important}
 .song .name b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:22px;font-weight:700;letter-spacing:-.02em}
 .song .name span{color:var(--muted);font-size:14px}
 
@@ -161,9 +163,9 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 <body>
 <div class="app">
   <header class="topbar">
-    <h1 class="logo"><svg class="mark-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2.5a9.5 9.5 0 0 0 0 19z" fill="currentColor"/><path d="M13 0.5a9.5 9.5 0 0 1 0 19z" fill="currentColor" opacity=".35"/></svg><span>cut<b>solos</b></span></h1>
+    <h1 class="logo" id="home" role="button" tabindex="0" aria-label="Les meves cançons"><svg class="mark-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 2.5a9.5 9.5 0 0 0 0 19z" fill="currentColor"/><path d="M13 0.5a9.5 9.5 0 0 1 0 19z" fill="currentColor" opacity=".35"/></svg><span>cut<b>solos</b></span></h1>
     <span class="grow"></span>
-    <button id="bNew" hidden aria-label="Nou àudio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    <button id="bNew" aria-label="Cançó nova"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
   </header>
 
   <main>
@@ -187,7 +189,7 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 
     <!-- 3. Tria el tros del solo -->
     <section id="trim" class="trim" hidden>
-      <div class="song"><div class="name"><b id="trimName"></b></div></div>
+      <div class="song"><div class="name"><b id="trimName" class="ren" contenteditable="true" spellcheck="false" autocapitalize="off" enterkeyhint="done" aria-label="Nom de la cançó"></b></div></div>
 
       <div class="tl" id="tl" aria-label="Cançó">
         <div class="bars" id="bars"></div>
@@ -223,7 +225,7 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
     <!-- 4. Pads -->
     <section id="board" hidden>
       <div class="song" style="margin-bottom:12px">
-        <div class="name"><b id="songName"></b><span id="songInfo"></span></div>
+        <div class="name"><b id="songName" class="ren" contenteditable="true" spellcheck="false" autocapitalize="off" enterkeyhint="done" aria-label="Nom de la cançó"></b><span id="songInfo"></span></div>
         <button class="pill" id="bTrim">Tros</button>
       </div>
       <div class="pad-wrap"><div class="pads" id="pads" role="group" aria-label="Frases"></div></div>
@@ -435,7 +437,7 @@ function show(which){
   $('board').hidden = which!=='board';
   $('trim').hidden = which!=='trim';
   $('dock').hidden = which!=='board';
-  $('bNew').hidden = which!=='board' && which!=='trim';
+  $('bNew').hidden = which==='busy';
   if(which!=='drop') $('err').hidden=true;
 }
 const fmtT = t => { const m=Math.floor(t/60), s=Math.floor(t%60); return m+':'+String(s).padStart(2,'0'); };
@@ -586,7 +588,9 @@ pads.addEventListener('contextmenu',e=>e.preventDefault());
 $('bLoop').onclick=()=>{ S.loop=!S.loop; $('bLoop').setAttribute('aria-pressed',S.loop); if(!S.loop) clearTimeout(S.loopTimer); updDock(); };
 $('bAgain').onclick=()=>{ if(S.last) playRange(S.last.a,S.last.b); };
 $('bStop').onclick=()=>{ stop(); if(S.group){ S.group=null; paintSel(); save(); } if(S.loop){ S.loop=false; $('bLoop').setAttribute('aria-pressed',false); } updDock(); };
-$('bNew').onclick=()=>{ stop(); tStop(); $('file').value=''; show('drop'); };
+$('bNew').onclick=()=>{ $('file').value=''; $('file').click(); };   // + : tria una cançó nova
+$('home').onclick=()=>{ stop(); tStop(); show('drop'); };          // logo: a les meves cançons
+$('home').onkeydown=e=>{ if(e.key==='Enter') $('home').click(); };
 $('bTrim').onclick=()=>{ stop(); openTrim(); };
 
 // ---------- Tria el tros ----------
@@ -671,7 +675,7 @@ const drop=$('drop');
 ['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over');}));
 drop.addEventListener('drop',e=>loadFile(e.dataTransfer.files[0]));
 document.addEventListener('keydown',e=>{
-  if($('board').hidden || e.target.tagName==='INPUT') return;
+  if($('board').hidden || e.target.tagName==='INPUT' || e.target.isContentEditable) return;
   if(e.key===' '){ e.preventDefault(); S.play ? stop() : (S.last && playRange(S.last.a,S.last.b)); }
   else if(e.key==='Escape') stop();
   else if(e.key==='ArrowRight'||e.key==='ArrowLeft'){
@@ -686,18 +690,25 @@ function idb(){ return new Promise((res,rej)=>{ let r; try{ r=indexedDB.open(DB.
   r.onupgradeneeded=()=>r.result.createObjectStore(DB.st,{keyPath:'id'}); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
 async function tx(mode, fn){ const db=await idb(); return new Promise((res,rej)=>{ const t=db.transaction(DB.st,mode); const st=t.objectStore(DB.st);
   const out=fn(st); t.oncomplete=()=>res(out && out.result!==undefined ? out.result : out); t.onerror=()=>rej(t.error); }); }
-let saveT=null;
+// cada canvi prepara el registre a l'instant; l'escriptura s'agrupa (així no es perd res si canvies de cançó de seguida)
+let saveT=null; const pend=new Map();
 function save(){
   if(!S.blob || !S.an) return;
-  clearTimeout(saveT);
-  saveT=setTimeout(async()=>{
-    const rec={ id:S.sid, name:S.name, blob:S.blob, region:{a:S.region.a,b:S.region.b}, level:S.level, rate:S.rate, group:S.group,
-                dur:S.an.dur, n:S.phrases.length, saved:Date.now() };
-    try{ await tx('readwrite', st=>st.put(rec)); if(S.toasted!==S.sid){ S.toasted=S.sid; toast('Desat'); } }
-    catch(e){ console.warn('No es pot desar',e); }
-  },600);
+  pend.set(S.sid,{ id:S.sid, name:S.name, blob:S.blob, region:{a:S.region.a,b:S.region.b}, level:S.level, rate:S.rate, group:S.group,
+                   dur:S.an.dur, n:S.phrases.length, saved:Date.now() });
+  clearTimeout(saveT); saveT=setTimeout(flushSave,500);
 }
+async function flushSave(){
+  clearTimeout(saveT); if(!pend.size) return;
+  const recs=[...pend.values()]; pend.clear();
+  try{ await tx('readwrite', st=>{ recs.forEach(r=>st.put(r)); });
+       if(S.toasted!==S.sid){ S.toasted=S.sid; toast('Desat'); } }
+  catch(e){ console.warn('No es pot desar',e); }
+}
+addEventListener('pagehide',flushSave);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) flushSave(); });
 async function renderLib(){
+  await flushSave();
   let all=[]; try{ all = await tx('readonly', st=>st.getAll()); }catch(e){}
   all=(all||[]).sort((a,b)=>b.saved-a.saved);
   const lib=$('lib'), list=$('libList'); list.innerHTML='';
@@ -727,6 +738,20 @@ try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e
 if('serviceWorker' in navigator && location.protocol==='https:' && /github\.io$/.test(location.hostname)){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
+// ---------- Canviar el nom (toca el títol) ----------
+document.querySelectorAll('.ren').forEach(el=>{
+  el.addEventListener('focus',()=>{ el.dataset.old=el.textContent; });
+  el.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){ e.preventDefault(); el.blur(); }
+    else if(e.key==='Escape'){ el.textContent=el.dataset.old||S.name; el.blur(); }
+  });
+  el.addEventListener('blur',()=>{
+    const v=el.textContent.replace(/\s+/g,' ').trim().slice(0,80);
+    if(v && v!==S.name){ S.name=v; save(); }
+    $('songName').textContent=S.name; $('trimName').textContent=S.name;
+  });
+});
+
 // Prova automàtica: window.__frase
 window.__frase = S;
 </script>
