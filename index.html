@@ -94,7 +94,7 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 .pad.on .fill{opacity:1}
 .pad.on .n,.pad.on .d{color:#FFFFFF;mix-blend-mode:difference}
 .pad.on{box-shadow:0 0 0 2px var(--lit)}
-.pad.sel{box-shadow:0 0 0 2px var(--ink)}
+.pad.sel{box-shadow:0 0 0 2.5px var(--ink)}
 .pad.picking{background:var(--ink);color:var(--bg)}
 .pad.picking .d{color:var(--bg);opacity:.6}
 .pads{-webkit-touch-callout:none}
@@ -107,8 +107,9 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 .row{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)}
 .row .lbl{width:58px;flex:none;color:var(--ink);font-weight:500}
 .detail input{flex:1;accent-color:var(--ink);height:28px}
-.tempo .val{flex:1;text-align:center;color:var(--ink);font-weight:600;font-size:17px;font-variant-numeric:tabular-nums;line-height:1.1}
-.tempo .val small{display:block;font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.tempo .val{min-width:58px;text-align:center;color:var(--ink);font-weight:600;font-size:17px;font-variant-numeric:tabular-nums;line-height:1.1}
+.tempo .tg{display:flex;align-items:center;gap:6px}
+.tempo .grow{flex:1}
 .tempo{gap:8px}
 .chip{font-size:15px;font-weight:500;border:0;background:var(--soft);color:var(--ink);border-radius:999px;padding:9px 14px;cursor:pointer;font-variant-numeric:tabular-nums;white-space:nowrap}
 .chip:disabled{opacity:.35}
@@ -117,7 +118,8 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 .dock{position:sticky;bottom:0;z-index:20;background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line);
   padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:flex;gap:4px}
 .dock button{flex:1;font-weight:500;font-size:11px;border:0;border-radius:999px;background:none;color:var(--muted);padding:6px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;line-height:1.1}
-.dock button svg{width:24px;height:24px}
+.dock button svg{width:26px;height:26px}
+.dock button{padding:10px 4px!important}
 .dock button[aria-pressed="true"]{color:var(--ink);background:var(--soft)}
 .dock button:not(:disabled){color:var(--ink)}
 .dock button:disabled{opacity:.3}
@@ -226,9 +228,12 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
       </div>
       <div class="pad-wrap"><div class="pads" id="pads" role="group" aria-label="Frases"></div></div>
       <div class="row tempo" style="margin-top:6px">
-        <button class="chip" id="rDown">−0,15</button>
-        <span class="val"><small>Tempo</small><span id="rVal">1,00×</span></span>
-        <button class="chip" id="rUp">+0,15</button>
+        <span class="tg">
+          <button class="chip" id="rDown">−0,15</button>
+          <span class="val" id="rVal">1,00×</span>
+          <button class="chip" id="rUp">+0,15</button>
+        </span>
+        <span class="grow"></span>
         <button class="chip" id="rReset">Original</button>
       </div>
       <div class="row detail">
@@ -241,17 +246,14 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
   </main>
 
   <nav class="dock" id="dock" hidden>
-    <button id="bLoop" aria-pressed="false">
+    <button id="bLoop" aria-pressed="false" aria-label="Repeteix" title="Repeteix">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>
-      Repeteix
     </button>
-    <button id="bAgain" disabled>
+    <button id="bAgain" disabled aria-label="Torna-hi" title="Torna-hi">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>
-      Torna-hi
     </button>
-    <button id="bStop" class="stop" disabled>
+    <button id="bStop" class="stop" disabled aria-label="Atura" title="Atura">
       <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-      Atura
     </button>
   </nav>
   <div class="toast" id="toast">Desat</div>
@@ -281,10 +283,10 @@ async function loadFile(f, rec){
     $('busyMsg').textContent='Buscant les frases…';
     await new Promise(r=>setTimeout(r,30));
     S.an = await analyse(buf);
-    S.sel=null; S.last=null; stretchCache.clear();
+    S.sel=null; S.last=null; S.group=null; stretchCache.clear();
     if(rec){
       S.region = rec.region || {a:0,b:buf.duration};
-      S.level = rec.level ?? 2; $('detail').value = S.level; setRate(rec.rate||1, true);
+      S.level = rec.level ?? 2; $('detail').value = S.level; setRate(rec.rate||1, true); S.pendingGroup = rec.group||null;
       detect(); show('board');
     } else {
       S.region={a:0,b:buf.duration}; S.level=2; $('detail').value=2; setRate(1, true);
@@ -388,6 +390,8 @@ function detect(){
   const ph = out.map(([a,b])=>({ s: Math.max(R.a, sec(a)-0.05), e: Math.min(R.b, sec(b)+A.win/A.sr+0.15) }));
   for(let k=1;k<ph.length;k++){ if(ph[k].s < ph[k-1].e){ const m=(ph[k].s+ph[k-1].e)/2; ph[k-1].e=m; ph[k].s=m; } }
   S.phrases = ph; S.sel=null; S.last=null;
+  // el grup desat només es recupera si les frases són les mateixes
+  S.group = (S.pendingGroup && S.pendingGroup.b < ph.length) ? S.pendingGroup : null; S.pendingGroup=null;
   render(); save();
 }
 function mergeIf(seg, test){
@@ -449,15 +453,15 @@ function render(){
     b.innerHTML='<span class="fill"></span><span class="face"><span class="n">'+(i+1)+'</span><span class="d">'+fmtD(p.e-p.s)+'</span></span>';
     box.appendChild(b);
   });
-  paintSel(); hint();
+  paintSel(); hint(); updDock();
 }
 function hint(){}
 function paintSel(){
-  const r = S.sel || S.last;
+  const r = S.sel || S.group;
   document.querySelectorAll('.pad').forEach(el=>{
     const i=+el.dataset.i, inR = !!(r && i>=Math.min(r.a,r.b) && i<=Math.max(r.a,r.b));
     el.classList.toggle('picking', !!S.sel && inR);
-    el.classList.toggle('sel', !S.sel && !!r && r.b>r.a && inR);
+    el.classList.toggle('sel', !S.sel && !!r && inR);
   });
 }
 
@@ -544,7 +548,7 @@ function tick(){
   requestAnimationFrame(tick);
 }
 function updDock(){
-  $('bStop').disabled = !S.play && !S.loop;
+  $('bStop').disabled = !S.play && !S.loop && !S.group;
   $('bAgain').disabled = !S.last;
 }
 
@@ -569,15 +573,19 @@ function endGesture(e, cancel){
   if(e.pointerId!==G.id) return;
   const wasTap = !!G.timer; clearTimeout(G.timer); G.timer=null; G.id=null;
   if(S.sel){ const a=Math.min(S.sel.a,S.sel.b), b=Math.max(S.sel.a,S.sel.b); S.sel=null;
-    if(!cancel){ playRange(a,b); hint(a===b?null:'Escoltant les frases <b>'+(a+1)+' a '+(b+1)+'</b>.'); } else paintSel(); }
-  else if(wasTap && !cancel){ playRange(G.i,G.i); hint(); }
+    if(!cancel){ if(a!==b){ S.group={a,b}; save(); } playRange(a,b); } else paintSel(); }
+  else if(wasTap && !cancel){
+    const g=S.group, i=G.i;
+    if(g && i>=g.a && i<=g.b) playRange(g.a,g.b);   // dins del grup: sona el grup sencer
+    else playRange(i,i);
+  }
 }
 pads.addEventListener('pointerup',e=>endGesture(e,false));
 pads.addEventListener('pointercancel',e=>endGesture(e,!S.sel));
 pads.addEventListener('contextmenu',e=>e.preventDefault());
 $('bLoop').onclick=()=>{ S.loop=!S.loop; $('bLoop').setAttribute('aria-pressed',S.loop); if(!S.loop) clearTimeout(S.loopTimer); updDock(); };
 $('bAgain').onclick=()=>{ if(S.last) playRange(S.last.a,S.last.b); };
-$('bStop').onclick=()=>{ stop(); if(S.loop){ S.loop=false; $('bLoop').setAttribute('aria-pressed',false); } updDock(); };
+$('bStop').onclick=()=>{ stop(); if(S.group){ S.group=null; paintSel(); save(); } if(S.loop){ S.loop=false; $('bLoop').setAttribute('aria-pressed',false); } updDock(); };
 $('bNew').onclick=()=>{ stop(); tStop(); $('file').value=''; show('drop'); };
 $('bTrim').onclick=()=>{ stop(); openTrim(); };
 
@@ -683,7 +691,7 @@ function save(){
   if(!S.blob || !S.an) return;
   clearTimeout(saveT);
   saveT=setTimeout(async()=>{
-    const rec={ id:S.sid, name:S.name, blob:S.blob, region:{a:S.region.a,b:S.region.b}, level:S.level, rate:S.rate,
+    const rec={ id:S.sid, name:S.name, blob:S.blob, region:{a:S.region.a,b:S.region.b}, level:S.level, rate:S.rate, group:S.group,
                 dur:S.an.dur, n:S.phrases.length, saved:Date.now() };
     try{ await tx('readwrite', st=>st.put(rec)); if(S.toasted!==S.sid){ S.toasted=S.sid; toast('Desat'); } }
     catch(e){ console.warn('No es pot desar',e); }
