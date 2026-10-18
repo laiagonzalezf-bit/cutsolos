@@ -432,7 +432,71 @@ async function analyse(buf){
   const pct = p => sorted[Math.min(n-1,Math.max(0,Math.floor(p*(n-1))))];
   const floor = pct(0.08), peak = pct(0.98);
   const lmax = movMax(db,75);     // màxim local ±0,75 s
-  return { sr, hop, win, n, db, slow, lmax, floor, peak, dur: buf.duration };
+  const A={ sr, hop, win, n, db, slow, lmax, floor, peak, dur: buf.duration };
+  try{ A.mel = await melody(buf, n); }catch(e){ console.warn('melodia',e); A.mel=null; }
+  return A;
+}
+
+// ---------- Melodia del solista ----------
+// Amb tota la banda de fons el volum no baixa mai entre frases. En canvi, la nota dominant
+// (suma d'harmònics) mostra una línia melòdica clara quan el solista toca i s'enfonsa quan respira.
+function fftInit(n){
+  const lev=Math.log2(n), rev=new Uint32Array(n);
+  for(let i=0;i<n;i++){ let r=0,x=i; for(let k=0;k<lev;k++){ r=(r<<1)|(x&1); x>>=1; } rev[i]=r; }
+  const cos=new Float64Array(n/2), sin=new Float64Array(n/2);
+  for(let i=0;i<n/2;i++){ cos[i]=Math.cos(2*Math.PI*i/n); sin[i]=Math.sin(2*Math.PI*i/n); }
+  return {n,rev,cos,sin};
+}
+function fft(F,re,im){
+  const n=F.n;
+  for(let i=0;i<n;i++){ const j=F.rev[i]; if(j>i){ let t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; } }
+  for(let size=2; size<=n; size<<=1){
+    const half=size>>1, step=n/size;
+    for(let i=0;i<n;i+=size){
+      for(let j=0,k=0;j<half;j++,k+=step){
+        const a=i+j, b=a+half, tr=re[b]*F.cos[k]+im[b]*F.sin[k], ti=im[b]*F.cos[k]-re[b]*F.sin[k];
+        re[b]=re[a]-tr; im[b]=im[a]-ti; re[a]+=tr; im[a]+=ti;
+      }
+    }
+  }
+}
+async function melody(buf, nFrames){
+  const SR=22050, OC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  const off=new OC(1, Math.ceil(buf.duration*SR), SR);
+  const src=off.createBufferSource(); src.buffer=buf; src.connect(off.destination); src.start();
+  const x=(await off.startRendering()).getChannelData(0);
+  const N=2048, H=220, F=fftInit(N), df=SR/N;
+  const win=new Float32Array(N); for(let i=0;i<N;i++) win[i]=0.5-0.5*Math.cos(2*Math.PI*i/N);
+  const MIDS=[]; for(let m=45;m<=96;m++) MIDS.push(m);
+  const LEAD0=MIDS.indexOf(55);
+  const bins=MIDS.map(m=>{ const f0=440*Math.pow(2,(m-69)/12), out=[]; for(let h=1;h<=10;h++){ const b=Math.round(f0*h/df); if(b+1>=N/2) break; out.push(b); } return out; });
+  const W=MIDS.map((_,k)=>bins[k].map((_,h)=>Math.pow(0.85,h)));
+  const nF=Math.max(1,Math.floor((x.length-N)/H)+1);
+  const con=new Float32Array(nF), arg=new Uint8Array(nF);
+  const re=new Float64Array(N), im=new Float64Array(N), lm=new Float32Array(N/2), sal=new Float32Array(MIDS.length), tmp=new Float32Array(MIDS.length);
+  for(let j=0;j<nF;j++){
+    const o=j*H;
+    for(let i=0;i<N;i++){ re[i]=x[o+i]*win[i]; im[i]=0; }
+    fft(F,re,im);
+    for(let i=0;i<N/2;i++) lm[i]=Math.log1p(Math.hypot(re[i],im[i])*200/1024);
+    let best=-1, bi=LEAD0;
+    for(let k=0;k<MIDS.length;k++){
+      let v=0; const bk=bins[k], wk=W[k];
+      for(let h=0;h<bk.length;h++){ const b=bk[h]; v+=wk[h]*Math.max(lm[b-1],lm[b],lm[b+1]); }
+      sal[k]=v; if(k>=LEAD0 && v>best){ best=v; bi=k; }
+    }
+    tmp.set(sal); tmp.sort();
+    con[j]=best-tmp[tmp.length>>1]; arg[j]=MIDS[bi];
+    if(j%1500===1499) await new Promise(r=>setTimeout(r,0));
+  }
+  // a la graella de 10 ms de l'anàlisi d'energia
+  const c=new Float32Array(nFrames), a=new Uint8Array(nFrames);
+  for(let i=0;i<nFrames;i++){
+    const t=i*0.01+0.015, j=Math.max(0,Math.min(nF-1,Math.round((t*SR-N/2)/H)));
+    c[i]=con[j]; a[i]=arg[j];
+  }
+  const cs=movAvg(c,4);
+  return { c:cs, arg:a, slow:movAvg(c,12) };
 }
 function movAvg(a,h){ const n=a.length,o=new Float32Array(n),cs=new Float64Array(n+1); for(let i=0;i<n;i++)cs[i+1]=cs[i]+a[i];
   for(let i=0;i<n;i++){const lo=Math.max(0,i-h),hi=Math.min(n,i+h+1);o[i]=(cs[hi]-cs[lo])/(hi-lo);} return o; }
@@ -447,11 +511,11 @@ function movMax(a,h){ const n=a.length,o=new Float32Array(n),dq=[]; let head=0;
 // ---------- Frases ----------
 // 0 = frases llargues … 4 = frases curtes
 const LEVELS = [
-  {depth:20, absK:.18, gap:.40, minLen:2.0, maxLen:14},
-  {depth:16, absK:.20, gap:.30, minLen:1.4, maxLen:10},
-  {depth:13, absK:.22, gap:.22, minLen:1.0, maxLen:7},
-  {depth:10, absK:.25, gap:.16, minLen:.7,  maxLen:5},
-  {depth:8,  absK:.28, gap:.12, minLen:.5,  maxLen:3.5},
+  {depth:20, absK:.18, gap:.60, minLen:2.0, maxLen:14},
+  {depth:16, absK:.20, gap:.45, minLen:1.4, maxLen:10},
+  {depth:13, absK:.22, gap:.30, minLen:1.0, maxLen:8},
+  {depth:10, absK:.25, gap:.20, minLen:.7,  maxLen:5},
+  {depth:8,  absK:.28, gap:.14, minLen:.5,  maxLen:3.5},
 ];
 function detect(){
   const A=S.an, L=LEVELS[S.level], fps=1/0.01;
@@ -461,9 +525,22 @@ function detect(){
   const sub=Float32Array.from(A.db.subarray(i0,Math.max(i0+1,i1))).sort();
   const pct=p=>sub[Math.min(sub.length-1,Math.max(0,Math.floor(p*(sub.length-1))))];
   const floor=pct(0.08), peak=pct(0.98);
-  const thr = floor + L.absK*(peak-floor);
   const act = new Uint8Array(A.n);
-  for(let i=i0;i<i1;i++) act[i] = (A.db[i]>thr && A.db[i]>A.lmax[i]-L.depth) ? 1:0;
+  if(A.mel){
+    // el solista toca quan la línia melòdica és clara (per sobre del 35 % del tros) i estable (±1 semitò en 70 ms)
+    const M=A.mel, cs=Float32Array.from(M.c.subarray(i0,Math.max(i0+1,i1))).sort();
+    const cthr=cs[Math.floor(0.35*(cs.length-1))], ethr=floor+0.10*(peak-floor);
+    const v=new Float32Array(A.n);
+    for(let i=i0;i<i1;i++){
+      let lo=255,hi=0; for(let k=Math.max(i0,i-3);k<=Math.min(i1-1,i+3);k++){ const m=M.arg[k]; if(m<lo)lo=m; if(m>hi)hi=m; }
+      v[i] = (M.c[i]>cthr && hi-lo<=1) ? 1:0;
+    }
+    const vs=movAvg(v,7);
+    for(let i=i0;i<i1;i++) act[i] = (vs[i]>0.35 && A.db[i]>ethr) ? 1:0;
+  } else {
+    const thr = floor + L.absK*(peak-floor);
+    for(let i=i0;i<i1;i++) act[i] = (A.db[i]>thr && A.db[i]>A.lmax[i]-L.depth) ? 1:0;
+  }
   // trams actius
   let seg=[]; let s=-1;
   for(let i=0;i<=A.n;i++){
@@ -506,7 +583,7 @@ function splitLong(g,L){
   for(let i=g[0]+m;i<g[1]-m;i++){
     // vall: energia lenta respecte al màxim local; afavoreix el centre
     const c = Math.abs((i-g[0])/(g[1]-g[0])-0.5);
-    const v = A.slow[i]-A.lmax[i] + c*6;
+    const v = A.mel ? A.mel.slow[i] + c*1.5 : A.slow[i]-A.lmax[i] + c*6;
     if(v<bv){ bv=v; best=i; }
   }
   if(best<0) return [g];
