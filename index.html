@@ -537,6 +537,8 @@ function detect(){
     }
     const vs=movAvg(v,7);
     for(let i=i0;i<i1;i++) act[i] = (vs[i]>0.35 && A.db[i]>ethr) ? 1:0;
+    const ph=melodyCuts(act, v, i0, i1, R);
+    if(ph){ finishDetect(ph); return; }
   } else {
     const thr = floor + L.absK*(peak-floor);
     for(let i=i0;i<i1;i++) act[i] = (A.db[i]>thr && A.db[i]>A.lmax[i]-L.depth) ? 1:0;
@@ -567,10 +569,55 @@ function detect(){
   const sec = i => i*A.hop/A.sr;
   const ph = out.map(([a,b])=>({ s: Math.max(R.a, sec(a)-0.05), e: Math.min(R.b, sec(b)+A.win/A.sr+0.15) }));
   for(let k=1;k<ph.length;k++){ if(ph[k].s < ph[k-1].e){ const m=(ph[k].s+ph[k-1].e)/2; ph[k-1].e=m; ph[k].s=m; } }
+  finishDetect(ph);
+}
+function finishDetect(ph){
   S.phrases = ph; S.sel=null; S.last=null; S.custom=false;
   // el grup desat només es recupera si les frases són les mateixes
   S.group = (S.pendingGroup && S.pendingGroup.b < ph.length) ? S.pendingGroup : null; S.pendingGroup=null;
   render(); save();
+}
+// Talls repartits: entre totes les respiracions possibles, tria la combinació que dona frases
+// d'una llargada semblant a l'objectiu (control «llargues ↔ curtes»), sense tallar mai enmig d'una nota si es pot evitar.
+const TARGET=[10,6.5,4.5,3,2];
+function melodyCuts(act, v, i0, i1, R){
+  const A=S.an, fps=100, T=TARGET[S.level], minL=Math.max(0.8,T*0.4), maxL=T*2.2;
+  let st=-1, en=-1;
+  for(let i=i0;i<i1;i++) if(act[i]){ if(st<0) st=i; en=i+1; }
+  if(st<0) return null;
+  const g=movAvg(v,12);             // quant «toca» el solista al voltant de cada punt (0 = respiració)
+  // llargada de cada silenci del solista: com més llarg, millor lloc per tallar
+  const gapLen=new Float32Array(A.n);
+  for(let i=st;i<en;){ if(act[i]){ i++; continue; } let j=i; while(j<en && !act[j]) j++; const L=(j-i)/fps; for(let k=i;k<j;k++) gapLen[k]=L; i=j; }
+  const nodes=[st]; for(let i=st+5;i<en-5;i+=5) nodes.push(i); nodes.push(en);
+  const N=nodes.length, best=new Float64Array(N).fill(Infinity), prev=new Int32Array(N).fill(-1);
+  best[0]=0;
+  const lenCost=d=>{ const x=(d-T)/T; return x*x; };
+  for(let k=1;k<N;k++){
+    const cut = k===N-1 ? 0 : (act[nodes[k]] ? 4 + 2*g[nodes[k]] : 3.5*Math.exp(-gapLen[nodes[k]]/0.25));
+    for(let j=k-1;j>=0;j--){
+      const d=(nodes[k]-nodes[j])/fps;
+      if(d>maxL) break;
+      if(d<minL && !(j===0 && k===N-1)) continue;
+      const c=best[j]+lenCost(d)+cut;
+      if(c<best[k]){ best[k]=c; prev[k]=j; }
+    }
+  }
+  if(!isFinite(best[N-1])) return null;
+  const cuts=[]; for(let k=N-1;k>=0;k=prev[k]){ cuts.push(nodes[k]); if(k===0) break; }
+  cuts.reverse();
+  const sec=i=>i/fps;
+  const ph=[];
+  for(let k=0;k<cuts.length-1;k++){
+    // cada frase comença on el solista entra després del tall i acaba on deixa de tocar abans del següent
+    let a=cuts[k], b=cuts[k+1];
+    while(a<b-1 && !act[a]) a++;
+    while(b>a+1 && !act[b-1]) b--;
+    if(ph.length && (b-a)/fps<0.4){ ph[ph.length-1].e=Math.min(R.b, sec(b)+0.18); continue; }   // trosset: s'enganxa a l'anterior
+    ph.push({ s:Math.max(R.a, sec(a)-0.06), e:Math.min(R.b, sec(b)+0.18) });
+  }
+  for(let k=1;k<ph.length;k++){ if(ph[k].s < ph[k-1].e){ const m=(ph[k].s+ph[k-1].e)/2; ph[k-1].e=m; ph[k].s=m; } }
+  return ph;
 }
 function mergeIf(seg, test){
   const o=[]; for(const g of seg){ const p=o[o.length-1]; if(p && test(p,g)) p[1]=g[1]; else o.push([g[0],g[1]]); } return o;
