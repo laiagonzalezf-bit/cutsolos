@@ -170,10 +170,29 @@ main{flex:1;display:flex;flex-direction:column;padding:8px 20px 20px;gap:18px}
 .shbtns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .shbtns .round{width:52px;height:52px}
 .pill.danger{color:#FF7A8A}
+.pad.flash{animation:fl .5s ease-out}
+@keyframes fl{0%{box-shadow:0 0 0 6px rgba(255,138,61,.9)}100%{box-shadow:0 0 0 0 rgba(255,138,61,0)}}
 .pill:disabled{opacity:.35}
 .shbtns{flex-wrap:nowrap}
 .shbtns .pill{padding:9px 12px}
 .cur{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#B57BFF;pointer-events:none}
+/* ---- Mode concentració ---- */
+.topbar .grow{flex:1}
+.tb-icon{width:36px;height:36px;border-radius:12px;border:0;background:rgba(255,255,255,.08);color:#fff;display:grid;place-items:center;cursor:pointer;padding:0}
+.tb-icon svg{width:19px;height:19px}
+.focus-x{position:fixed;z-index:80;top:calc(env(safe-area-inset-top) + 2px);left:calc(env(safe-area-inset-left) + 2px);width:26px;height:26px;border:0;border-radius:8px;
+  background:transparent;color:rgba(255,255,255,.35);display:grid;place-items:center;padding:0;cursor:pointer}
+.focus-x svg{width:13px;height:13px}
+body.focus .topbar, body.focus .dock, body.focus .song, body.focus .row, body.focus .hint, body.focus .toast{display:none!important}
+body.focus main{padding:calc(env(safe-area-inset-top) + 32px) 10px calc(env(safe-area-inset-bottom) + 10px);height:100vh;height:100dvh;overflow:hidden}
+body.focus #board{flex:1;min-height:0;display:flex;flex-direction:column}
+body.focus .pad-wrap{flex:1;margin:0;min-height:0;display:flex}
+body.focus .pads{flex:1;min-height:0;grid-template-columns:repeat(var(--fc,3),1fr);grid-template-rows:repeat(var(--fr,3),1fr);gap:10px}
+body.focus .pad{aspect-ratio:auto;height:auto;min-height:0;border-radius:22px}
+body.focus .pad .n{font-size:clamp(34px,13vw,72px)}
+body.focus .pad .d{font-size:13px}
+body.focus{overscroll-behavior:none;touch-action:manipulation}
+body.focus .app{max-width:none}
 /* ---- Tema «Gradient» ---- */
 body{background:radial-gradient(120% 55% at 50% 0%,#2A1B4A 0%,var(--bg) 62%) fixed,var(--bg)}
 .topbar,.dock{background:rgba(13,11,20,.55);border:0}
@@ -210,7 +229,10 @@ body{background:radial-gradient(120% 55% at 50% 0%,#2A1B4A 0%,var(--bg) 62%) fix
 <div class="app">
   <header class="topbar">
     <h1 class="logo" id="home" role="button" tabindex="0" aria-label="Les meves cançons"><svg class="mark-logo" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#FF3CAC"/><stop offset="1" stop-color="#FF8A3D"/></linearGradient></defs><path d="M11 2.5a9.5 9.5 0 0 0 0 19z" fill="url(#lg)"/><path d="M13 0.5a9.5 9.5 0 0 1 0 19z" fill="currentColor" opacity=".35"/></svg><span>cut<b>solos</b></span></h1>
+    <span class="grow"></span>
+    <button class="tb-icon" id="bFocus" hidden aria-label="Mode concentració"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" fill="currentColor"/></svg></button>
   </header>
+  <button class="focus-x" id="bFocusX" hidden aria-label="Surt del mode concentració"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
 
   <main>
     <!-- 0. Cançons desades -->
@@ -513,6 +535,8 @@ function show(which){
   $('busy').hidden = which!=='busy';
   $('board').hidden = which!=='board';
   $('trim').hidden = which!=='trim';
+  $('bFocus').hidden = which!=='board';
+  if(which!=='board') setFocus(false);
   if(which!=='board'){ closeSheet(); setEditing(false); }
   $('dock').hidden = which!=='board';
   if(which!=='drop') $('err').hidden=true;
@@ -532,6 +556,7 @@ function render(){
     b.innerHTML='<span class="fill"></span><span class="face"><span class="n">'+(i+1)+'</span><span class="d">'+fmtD(p.e-p.s)+'</span></span>';
     box.appendChild(b);
   });
+  if(S.focus) requestAnimationFrame(layoutFocus);
   paintSel(); hint(); updDock();
 }
 function hint(){}
@@ -707,16 +732,33 @@ function endGesture(e, cancel){
   if(S.sel){ const a=Math.min(S.sel.a,S.sel.b), b=Math.max(S.sel.a,S.sel.b); S.sel=null;
     if(!cancel){ if(a!==b){ S.group={a,b}; save(); } playRange(a,b); } else paintSel(); }
   else if(wasTap && !cancel && S.editing){ openSheet(G.i); }
-  else if(wasTap && !cancel){
-    const g=S.group, i=G.i, now=performance.now();
-    const dbl = now-(G.lastT||0)<300;          // doble toc a qualsevol pad: atura-ho tot (com el botó ■)
-    G.lastT = dbl ? 0 : now;
-    if(dbl){ $('bStop').disabled=false; $('bStop').click(); return; }
-    const P=S.play, toggle=(x,y)=>{ if(P && P.a===x && P.b===y) stop(); else playRange(x,y); };   // segon toc: atura
-    if(g && i>=g.a && i<=g.b) toggle(g.a,g.b);   // dins del grup: sona el grup sencer
-    else toggle(i,i);
+  else if(wasTap && !cancel) tapPad(G.i);
+}
+// Tocs: 1 toc sona a l'instant · 2 tocs = atura i desfà la selecció · 3 tocs = bucle de la selecció.
+// El 2 i el 3 es decideixen quan deixes de tocar (0,3 s sense tocs), així el doble no s'avança al triple.
+const TAPS={ n:0, t:0, i:-1, timer:null };
+function tapPad(i){
+  const now=performance.now();
+  if(now-TAPS.t < 300){ TAPS.n++; }
+  else {
+    TAPS.n=1;
+    const g=S.group, P=S.play, toggle=(x,y)=>{ if(P && P.a===x && P.b===y) stop(); else playRange(x,y); };
+    if(g && i>=g.a && i<=g.b) toggle(g.a,g.b); else toggle(i,i);
+  }
+  TAPS.t=now; TAPS.i=i;
+  clearTimeout(TAPS.timer);
+  TAPS.timer=setTimeout(resolveTaps,300);
+}
+function resolveTaps(){
+  const n=TAPS.n, i=TAPS.i; TAPS.n=0; TAPS.t=0;
+  if(n===2){ $('bStop').disabled=false; $('bStop').click(); }
+  else if(n>=3){
+    const g=S.group, a=g?g.a:i, b=g?g.b:i;
+    S.loop=true; $('bLoop').setAttribute('aria-pressed',true);
+    playRange(a,b); flash(a,b);
   }
 }
+function flash(a,b){ for(let k=a;k<=b;k++){ const el=$('pads').children[k]; if(el){ el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); } } }
 pads.addEventListener('pointerup',e=>endGesture(e,false));
 pads.addEventListener('pointercancel',e=>endGesture(e,!S.sel));
 pads.addEventListener('contextmenu',e=>e.preventDefault());
@@ -883,6 +925,30 @@ try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e
 if('serviceWorker' in navigator && location.protocol==='https:' && /github\.io$/.test(location.hostname)){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
+// ---------- Mode concentració: només els pads, grans; per sortir, la creu petita de la cantonada ----------
+let wakeLock=null;
+function setFocus(on){
+  on=!!on; if(on===!!S.focus) return;
+  S.focus=on; document.body.classList.toggle('focus',on); $('bFocusX').hidden=!on;
+  if(on){ setEditing(false); closeSheet(); layoutFocus();
+    try{ navigator.wakeLock && navigator.wakeLock.request('screen').then(l=>wakeLock=l).catch(()=>{}); }catch(_){} }
+  else { try{ wakeLock && wakeLock.release(); }catch(_){} wakeLock=null; }
+}
+function layoutFocus(){
+  if(!S.focus) return;
+  const n=S.phrases.length, box=$('pads').parentElement.getBoundingClientRect();
+  const W=box.width||innerWidth, H=box.height||innerHeight;
+  let best={c:1,r:n,score:0};
+  for(let c=1;c<=n;c++){ const r=Math.ceil(n/c), w=W/c, h=H/r;
+    const score=Math.min(w,h)*Math.min(1,Math.min(w,h)/Math.max(w,h)*1.6);   // pads grans i no gaire allargats
+    if(score>best.score) best={c,r,score}; }
+  $('pads').style.setProperty('--fc',best.c); $('pads').style.setProperty('--fr',best.r);
+}
+$('bFocus').onclick=()=>setFocus(true);
+$('bFocusX').onclick=()=>setFocus(false);
+addEventListener('resize',layoutFocus);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && S.focus && navigator.wakeLock) navigator.wakeLock.request('screen').then(l=>wakeLock=l).catch(()=>{}); });
+
 // ---------- Editar una frase ----------
 const Z={ i:-1, w0:0, w1:0, cur:null, drag:null };
 function setEditing(on){
